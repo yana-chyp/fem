@@ -11,12 +11,12 @@ import fem_lib as fem
 # x = sp.symbols('x')
 
 
-a = -1
+a = 0
 b = 1
 c = nastia.exact_solution(a)
 d = nastia.exact_solution(b)
-n = 3
-m = 1
+n = 4
+m = 2
 mesh = nastia.get_mesh(a, b, n)
 base_functions = base.get_base_functions(m)
 matrix = system.set_up_matrix(m, mesh)
@@ -39,8 +39,12 @@ print("-"*30)
 q = fem.solve_system(matrix, f_arr)
 print("q(x_i) = ", q)
 print("-"*30)
+
+# u_values = [system.get_u_value(x, mesh, q, base_functions) for x in mesh]
+# print("u at mesh nodes: ", '[' + ', '.join([f"{el:.4f}" for el in u_values]) + ']')
+# print("-"*30)
 print("-"*30)
-print("-"*30)
+
 
 
 # x = sp.symbols('x')
@@ -50,17 +54,22 @@ print("-"*30)
 #         print(sp.lambdify(x, base_functions[k].subs('ksi', 2*(x - mesh[i])/(mesh[i+1] - mesh[i]) - 1))(mesh[i]) )
 #     print('\n')
 
-u = system.get_solution(q, base_functions, mesh)
-print("u(x) = ", u)
-print("-"*30)
+# u = system.get_solution(q, base_functions, mesh)
+# print("u(x) = ", u)
+# print("-"*30)
 
-u = sp.lambdify(sp.symbols('x'), u)
-u_values = [u(x) for x in mesh]
+# u = sp.lambdify(sp.symbols('x'), u)
 
-print("mesh = ", mesh)
+# div = 10
+# h = (b-a)/div
+# x_values = [a+i*h for i in  range(div)]
+# u_values = [system.get_u_value(x, mesh, q, base_functions) for x in x_values]
+
+
+# print("mesh = ", mesh)
 print("exact solution = ", [nastia.exact_solution(x) for x in mesh])
 
-# fem.plot_solution(u_values, mesh, a, b)
+# fem.plot_solution(u_values, x_values, a, b)
 
 
 

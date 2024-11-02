@@ -14,7 +14,7 @@ def set_up_matrix(m, mesh):
         J = (mesh[i+1]-mesh[i])/(base.ksi_right-base.ksi_left)
         for k in range(m+1):
             for l in range(m+1):
-                matrix[i*m+k][i*m+l] += element[k][l] * J
+                matrix[i*m+k][i*m+l] += element[k][l] / J
     return matrix
 
 def apply_boundary_conditions(matrix, f_arr, fa, fb):
@@ -63,3 +63,20 @@ def get_solution(q, base_functions, mesh):
             solution += q[i*m+k]*base_functions[k].subs(ksi, lin)
     return solution
 
+def get_interval(x, mesh):
+    index = -1
+    for i in range(len(mesh)-1):
+        if mesh[i] <= x <= mesh[i+1]: index+=1
+
+    return index
+
+def get_u_value(x, mesh, q, base_functions):
+    m = len(base_functions)-1
+    i = get_interval(x, mesh)
+    solution = 0
+    for k in range(m+1):
+        func = sp.lambdify(sp.symbols('ksi'), base_functions[k])
+        ksi = 2*(x - mesh[i])/(mesh[i+1] - mesh[i]) - 1
+        print("i = ", i, " ksi = ", x, " func(ksi) = ", func(ksi))
+        solution += q[i*m+k]*func(ksi)
+    return solution
