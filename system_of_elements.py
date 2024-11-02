@@ -1,3 +1,5 @@
+from matplotlib import pyplot as plt
+
 import finite_element as finel
 import base_functions as base
 import sympy as sp
@@ -64,11 +66,11 @@ def get_solution(q, base_functions, mesh):
     return solution
 
 def get_interval(x, mesh):
-    index = -1
+    # index = -1
     for i in range(len(mesh)-1):
-        if mesh[i] <= x <= mesh[i+1]: index+=1
-
-    return index
+        if mesh[i] <= x <= mesh[i+1]: return i
+    return -1
+    # return index
 
 def get_u_value(x, mesh, q, base_functions):
     m = len(base_functions)-1
@@ -77,6 +79,17 @@ def get_u_value(x, mesh, q, base_functions):
     for k in range(m+1):
         func = sp.lambdify(sp.symbols('ksi'), base_functions[k])
         ksi = 2*(x - mesh[i])/(mesh[i+1] - mesh[i]) - 1
-        print("i = ", i, " ksi = ", x, " func(ksi) = ", func(ksi))
+        # print("i = ", i, " ksi = ", x, " func(ksi) = ", func(ksi))
         solution += q[i*m+k]*func(ksi)
     return solution
+
+def plot_solution(u_values, x_values):
+    exact_values = [nastia.exact_solution(x) for x in x_values]
+    plt.plot(x_values, exact_values, label='Точний розв\'язок', linestyle='--')
+    plt.plot(x_values, u_values, label='Наближений розв\'язок')
+    plt.xlabel('x')
+    plt.ylabel('u(x)')
+    plt.title('Наближений розв\'язок на інтервалі [0, 1]')
+    plt.legend()
+    plt.grid(True)
+    plt.show()

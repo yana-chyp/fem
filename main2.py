@@ -11,11 +11,11 @@ import fem_lib as fem
 # x = sp.symbols('x')
 
 
-a = 0
-b = 1
+a = -10
+b = 10
 c = nastia.exact_solution(a)
 d = nastia.exact_solution(b)
-n = 4
+n = 5
 m = 2
 mesh = nastia.get_mesh(a, b, n)
 base_functions = base.get_base_functions(m)
@@ -60,17 +60,16 @@ print("-"*30)
 
 # u = sp.lambdify(sp.symbols('x'), u)
 
-# div = 10
-# h = (b-a)/div
-# x_values = [a+i*h for i in  range(div)]
-# u_values = [system.get_u_value(x, mesh, q, base_functions) for x in x_values]
+div = 100
+h = (b-a)/div
+x_values = [a+i*h for i in  range(div+1)]
+u_values = [system.get_u_value(x, mesh, q, base_functions) for x in x_values]
 
 
 # print("mesh = ", mesh)
 print("exact solution = ", [nastia.exact_solution(x) for x in mesh])
 
-# fem.plot_solution(u_values, x_values, a, b)
-
+system.plot_solution(u_values, x_values)
 
 
 # ksi_element = finel.element_matrix(m)
@@ -92,9 +91,3 @@ print("exact solution = ", [nastia.exact_solution(x) for x in mesh])
 #         y = [function(ksi) for ksi in ksi_s]
 #         plt.plot(x, y, label="phi[%i][%i]"%(i, j))
 #         j+=1
-#
-# plt.xlabel('x')
-# plt.ylabel('y')
-# plt.legend()
-# plt.grid(True)
-# plt.show()
