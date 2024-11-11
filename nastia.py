@@ -1,5 +1,5 @@
 import cmath
-
+import sympy as sp
 import numpy as np
 from scipy.integrate import quad
 import matplotlib.pyplot as plt
@@ -58,13 +58,17 @@ def approximate_solution(x, mesh, u):
     return result
 #function
 def f(x):
-    return 1
-    # return cmath.exp(x)
+    # return 1
+    # return -sp.exp(x)
+    # return -12*x**2
+    return sp.sin(x)
 
 #solution -u'' =1 original function
 def exact_solution(x):
-    return 0.5 * (x - x**2)
-    # return cmath.exp(x) + x
+    # return 0.5 * (x - x**2)
+    # return sp.exp(x) + x
+    # return x**4 - 5*x + 15
+    return sp.sin(x) + x
 
 # a = 0
 # b = 1
