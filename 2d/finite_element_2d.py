@@ -1,0 +1,25 @@
+import base_functions_2d as bf2d
+import sympy as sp
+import scipy.integrate as scin
+
+
+def element_matrix(m = 1):
+    n = (m+1)*(m+1)
+    base = bf2d.get_base_functions(m)
+    gradients = [[sp.diff(base[k], 'ksi'), sp.diff(base[k], 'eta')]  for k in range(n)]
+    # print(gradients)
+
+    #element matrix. set up of integrals of scalar products of gradients
+    em = [[[0,0] for j in range(n)] for i in range(n)]
+    # print("products")
+    ksi = sp.symbols('ksi')
+    eta = sp.symbols('eta')
+    for i in range(n):
+        for j in range(n):
+            prods = (gradients[i][0]*gradients[j][0], gradients[i][1]*gradients[j][1])
+            funcs = (sp.lambdify([ksi, eta], prods[0]), sp.lambdify([ksi, eta], prods[1]))
+            # print(func)
+            em[i][j] = [scin.dblquad(funcs[0], bf2d.ksi_left, bf2d.ksi_right, bf2d.eta_left, bf2d.eta_right)[0], scin.dblquad(funcs[1], bf2d.ksi_left, bf2d.ksi_right, bf2d.eta_left, bf2d.eta_right)[0]]
+
+
+    return em
