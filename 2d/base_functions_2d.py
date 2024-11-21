@@ -21,9 +21,14 @@ def get_base_functions(m = 1):
     # print(submesh)
     for i in range(n):
         expression = 1
-        for k in range(n):
-            if submesh[k][0] != submesh[i][0] and submesh[k][1] != submesh[i][1]:
-                expression *= ( (ksi - submesh[k][0])/(submesh[i][0]-submesh[k][0]) ) * ( (eta - submesh[k][1])/(submesh[i][1]-submesh[k][1]))
+        for k in range(m+1):
+            if submesh[k][0] != submesh[i][0]:
+                expression *= ( (ksi - submesh[k][0])/(submesh[i][0]-submesh[k][0]) )
+        for l in range(m+1):
+            if  submesh[l*(m+1)][1] != submesh[i][1]:
+                expression *= ( (eta - submesh[l*(m+1)][1])/(submesh[i][1]-submesh[l*(m+1)][1]))
+
+
         base_functions[i] = sp.simplify(expression)
     #     for j in range(m+1):
     #         expression = 1
