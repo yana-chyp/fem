@@ -1,0 +1,27 @@
+import base_functions_2d as bs2d
+import finite_element_2d as fe2d
+import system_2d as s2d
+
+# bs2d.get_base_functions()
+
+# base_functions = bs2d.get_base_functions()
+# for f in base_functions:
+#     print(f)
+
+# em = fe2d.element_matrix()
+# for row in em:
+#     print(row)
+    # print('[' + ', '.join([f"{el:.3f}" for el in row]) + ']' )
+
+
+d1 = 1
+d2 = 1
+p = 4
+m = 3
+
+matrix = s2d.set_up_matrix(d1, d2, p, m)
+for row in matrix:
+    # print(row)
+    print('[' + ', '.join([f"{el:.8f}" for el in row]) + ']' )
+
+
