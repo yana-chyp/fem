@@ -7,8 +7,6 @@ eta_left = -1
 eta_right = 1
 
 def get_base_functions(m = 1):
-    #for now gives correct results only for m = 1
-    #greater values of m need work
     n = (m+1)*(m+1)     #number of nodes
     base_functions = [0 for k in range(n)]
     ksi = sp.symbols('ksi')
