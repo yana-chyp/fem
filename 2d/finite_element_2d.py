@@ -10,7 +10,9 @@ def element_matrix(m = 1):
     # print(gradients)
 
     #element matrix. set up of integrals of scalar products of gradients
-    em = [[[0,0] for j in range(n)] for i in range(n)]
+    # em = [[[0,0] for j in range(n)] for i in range(n)]
+    em = [[0 for j in range(n)] for i in range(n)]
+
     # print("products")
     ksi = sp.symbols('ksi')
     eta = sp.symbols('eta')
@@ -19,7 +21,9 @@ def element_matrix(m = 1):
             prods = (gradients[i][0]*gradients[j][0], gradients[i][1]*gradients[j][1])
             funcs = (sp.lambdify([ksi, eta], prods[0]), sp.lambdify([ksi, eta], prods[1]))
             # print(func)
-            em[i][j] = [scin.dblquad(funcs[0], bf2d.ksi_left, bf2d.ksi_right, bf2d.eta_left, bf2d.eta_right)[0], scin.dblquad(funcs[1], bf2d.ksi_left, bf2d.ksi_right, bf2d.eta_left, bf2d.eta_right)[0]]
-
+            int_1 = scin.dblquad(funcs[0], bf2d.ksi_left, bf2d.ksi_right, bf2d.eta_left, bf2d.eta_right)[0]
+            int_2 = scin.dblquad(funcs[1], bf2d.ksi_left, bf2d.ksi_right, bf2d.eta_left, bf2d.eta_right)[0]
+            # em[i][j] = [int_1, int_2]
+            em[i][j] = int_1 + int_2
 
     return em
