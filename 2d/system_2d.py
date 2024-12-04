@@ -1,29 +1,34 @@
 # from distutils.command.install import value
+import numpy as np
 
 import mesh_2d as m2d
 import base_functions_2d as bf2d
 import finite_element_2d as fe2d
+import base_functions_2d as bs2d
 from base_functions_2d import ksi_right, ksi_left, eta_right, eta_left
 import sympy as sp
 import scipy.integrate as scin
 
+def solve(b1, d1, b2, d2, p, m, degree, f, ug, element_type='D2QU4N'):
+    nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree, b1, b2)
+    h_x = (d1-b1)/p /degree; h_y = (d2-b2)/m /degree; J = h_x*h_y/((ksi_right-ksi_left)*(eta_right-eta_left))
+    matrix = set_up_matrix(nodes, elements, degree, J, p, m)
+    base = bs2d.get_base_functions(degree)
+    f_vec = set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m)
+    matrix, f_vec = apply_boundary_conditions(matrix, f_vec, p, m, nodes, ug, degree)
+    u = np.linalg.solve(matrix, f_vec)
+    print('[' + ', '.join([f"{el:.4f}" for el in u]) + ']')
+    m2d.plot_2d_solution(u, nodes, elements)
 
-def set_up_matrix(d1, d2, p, m, element_type='D2QU4N', degree = 1):
-    nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree)
-    # if degree==1:
-    #     nodes, elements = m2d.uniform_mesh_level1(d1, d2, p, m, element_type)
-    # elif degree==2:
-    #     nodes, elements = m2d.uniform_mesh_level2(d1, d2, p, m, element_type)
-    # elif degree==3:
-    #     nodes, elements = m2d.uniform_mesh_level3(d1, d2, p, m, element_type)
-    # else:
-    #     print("unsupported degree")
+
+def set_up_matrix(nodes, elements, degree, J, p, m):
+    # nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree)
     #npe - nodes per element (assume all are the same)
     npe = len(elements[0])
     #let it be rectangle
 
     #assume nodes are equidistant
-    h_x = d1/p /degree; h_y = d2/m /degree; J = h_x*h_y/((ksi_right-ksi_left)*(eta_right-eta_left))
+    # h_x = (d1-b1)/p /degree; h_y = (d2-b2)/m /degree; J = h_x*h_y/((ksi_right-ksi_left)*(eta_right-eta_left))
 
     n = (degree*p+1)*(degree*m+1)
     matrix = [[0 for j in range(n)] for i in range(n)]
@@ -45,20 +50,12 @@ def set_up_matrix(d1, d2, p, m, element_type='D2QU4N', degree = 1):
     return matrix
 
 
-def set_up_vector(f, base, d1, d2, p, m, element_type='D2QU4N', degree = 1):
-    # if degree==1:
-    #     nodes, elements = m2d.uniform_mesh_level1(d1, d2, p, m, element_type)
-    # elif degree==2:
-    #     nodes, elements = m2d.uniform_mesh_level2(d1, d2, p, m, element_type)
-    # elif degree==3:
-    #     nodes, elements = m2d.uniform_mesh_level3(d1, d2, p, m, element_type)
-    # else:
-    #     print("unsupported degree")
-    nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree)
+def set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m):
+    # nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree)
 
     n = (degree*p+1)*(m*degree+1)
-    h_x = d1 / p /degree; h_y = d2 / m /degree
-    J = h_x * h_y / ((ksi_right - ksi_left) * (eta_right - eta_left))
+    h_x = (d1-b1) / p /degree; h_y = (d2-b2) / m /degree
+    # J = h_x * h_y / ((ksi_right - ksi_left) * (eta_right - eta_left))
 
     f_vec = [0 for i in range(n)]
     ksi = sp.symbols('ksi'); eta = sp.symbols('eta')
