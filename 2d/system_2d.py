@@ -1,27 +1,39 @@
 # from distutils.command.install import value
+import numpy as np
 
-import nastia2d as n2d
+import mesh_2d as m2d
 import base_functions_2d as bf2d
 import finite_element_2d as fe2d
+import base_functions_2d as bs2d
 from base_functions_2d import ksi_right, ksi_left, eta_right, eta_left
 import sympy as sp
 import scipy.integrate as scin
 
+def solve(b1, d1, b2, d2, p, m, degree, f, ug, element_type='D2QU4N'):
+    nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree, b1, b2)
+    h_x = (d1-b1)/p /degree; h_y = (d2-b2)/m /degree; J = h_x*h_y/((ksi_right-ksi_left)*(eta_right-eta_left))
+    matrix = set_up_matrix(nodes, elements, degree, J, p, m)
+    base = bs2d.get_base_functions(degree)
+    f_vec = set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m)
+    matrix, f_vec = apply_boundary_conditions(matrix, f_vec, p, m, nodes, ug, degree)
+    u = np.linalg.solve(matrix, f_vec)
+    print('[' + ', '.join([f"{el:.4f}" for el in u]) + ']')
+    m2d.plot_2d_solution(u, nodes, elements)
 
-def set_up_matrix(d1, d2, p, m, element_type='D2QU4N'):
-    nodes, elements = n2d.uniform_mesh(d1, d2, p, m, element_type)
+
+def set_up_matrix(nodes, elements, degree, J, p, m):
+    # nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree)
     #npe - nodes per element (assume all are the same)
     npe = len(elements[0])
     #let it be rectangle
 
     #assume nodes are equidistant
-    h_x = d1/p; h_y = d2/m; J = h_x*h_y/((ksi_right-ksi_left)*(eta_right-eta_left))
+    # h_x = (d1-b1)/p /degree; h_y = (d2-b2)/m /degree; J = h_x*h_y/((ksi_right-ksi_left)*(eta_right-eta_left))
 
-    n = (p+1)*(m+1)
+    n = (degree*p+1)*(degree*m+1)
     matrix = [[0 for j in range(n)] for i in range(n)]
 
-    #here linear base functions
-    em = fe2d.element_matrix()
+    em = fe2d.element_matrix(degree)
     #ioe - index of element
     for ioe in range(len(elements)):
         #noe - nodes of element
@@ -38,11 +50,12 @@ def set_up_matrix(d1, d2, p, m, element_type='D2QU4N'):
     return matrix
 
 
-def set_up_vector(f, base, d1, d2, p, m, element_type='D2QU4N'):
-    nodes, elements = n2d.uniform_mesh(d1, d2, p, m, element_type)
-    n = (p+1)*(m+1)
-    h_x = d1 / p; h_y = d2 / m
-    J = h_x * h_y / ((ksi_right - ksi_left) * (eta_right - eta_left))
+def set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m):
+    # nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree)
+
+    n = (degree*p+1)*(m*degree+1)
+    h_x = (d1-b1) / p /degree; h_y = (d2-b2) / m /degree
+    # J = h_x * h_y / ((ksi_right - ksi_left) * (eta_right - eta_left))
 
     f_vec = [0 for i in range(n)]
     ksi = sp.symbols('ksi'); eta = sp.symbols('eta')
@@ -65,29 +78,29 @@ def set_up_vector(f, base, d1, d2, p, m, element_type='D2QU4N'):
 
 
 
-def get_boundary_points(p, m):
+def get_boundary_points(p, m, degree = 1):
     bounds = []
     gamma_1 = []; gamma_2 = []; gamma_3 = []; gamma_4 = []
-    for j in range(p+1):
+    for j in range(degree*p+1):
         gamma_1.append(j)
     bounds.append(gamma_1)
-    for i in range(1, m+1):
-        index = (i+1)*(p+1)-1
+    for i in range(1, degree*m+1):
+        index = (i+1)*(degree*p+1)-1
         gamma_2.append(index)
     bounds.append(gamma_2)
-    for j in reversed(range(p)):
-        index = (p+1)*m + j
+    for j in reversed(range(degree*p)):
+        index = (degree*p+1)*degree*m + j
         gamma_3.append(index)
     bounds.append(gamma_3)
-    for i in reversed(range(1, m)):
-        index = i*(p+1)
+    for i in reversed(range(1, degree*m)):
+        index = i*(degree*p+1)
         gamma_4.append(index)
     bounds.append(gamma_4)
     return bounds
 
-def apply_boundary_conditions(matrix, f_vec, p, m, nodes, ug):
-    bounds = get_boundary_points(p, m)
-    print(bounds)
+def apply_boundary_conditions(matrix, f_vec, p, m, nodes, ug, degree = 1):
+    bounds = get_boundary_points(p, m, degree)
+    # print(bounds)
     n = len(ug)
     for i in range(n):
         for index in bounds[i]:
@@ -99,24 +112,6 @@ def apply_boundary_conditions(matrix, f_vec, p, m, nodes, ug):
 
 
 
-#let ug_i = f(x) = y - function defining the boundary conditions
-#here i = 1,...,4 means 4 intervals on the plane intersecting the Omega area
-# def get_boundary_points(NL , ug_1, ug_2, ug_3, ug_4):
-    # gamma_1 = []
-    # gamma_2 = []
-    # gamma_3 = []
-    # gamma_4 = []
-    # for i in range(len(NL)):
-    #     if NL[i][1]==ug_1(NL[i][0]):
-    #         gamma_1.append(NL[i])
-    #     elif NL[i][1]==ug_2(NL[i][0]):
-    #         gamma_2.append(NL[i])
-    #     elif NL[i][1]==ug_3(NL[i][0]):
-    #         gamma_3.append(NL[i])
-    #     elif NL[i][1]==ug_4(NL[i][0]):
-    #         gamma_4.append(NL[i])
-
-    # return[gamma_1, gamma_2, gamma_3, gamma_4]
 
 
 
