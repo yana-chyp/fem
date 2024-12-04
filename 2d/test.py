@@ -27,7 +27,7 @@ d1 = 1
 d2 = 1
 p = 5
 m = 5
-degree = 2
+degree = 3
 element_type='D2QU4N'
 
 base = bs2d.get_base_functions(degree)
@@ -81,4 +81,4 @@ print(50*"-")
 u = np.linalg.solve(matrix, f_vec)
 print('[' + ', '.join([f"{el:.4f}" for el in u]) + ']')
 
-g2d.plot_2d_solution(u, nodes, elements)
+m2d.plot_2d_solution(u, nodes, elements)

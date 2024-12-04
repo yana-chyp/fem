@@ -9,15 +9,15 @@ import scipy.integrate as scin
 
 
 def set_up_matrix(d1, d2, p, m, element_type='D2QU4N', degree = 1):
-    # nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type)
-    if degree==1:
-        nodes, elements = m2d.uniform_mesh_level1(d1, d2, p, m, element_type)
-    elif degree==2:
-        nodes, elements = m2d.uniform_mesh_level2(d1, d2, p, m, element_type)
-    elif degree==3:
-        nodes, elements = m2d.uniform_mesh_level3(d1, d2, p, m, element_type)
-    else:
-        print("unsupported degree")
+    nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree)
+    # if degree==1:
+    #     nodes, elements = m2d.uniform_mesh_level1(d1, d2, p, m, element_type)
+    # elif degree==2:
+    #     nodes, elements = m2d.uniform_mesh_level2(d1, d2, p, m, element_type)
+    # elif degree==3:
+    #     nodes, elements = m2d.uniform_mesh_level3(d1, d2, p, m, element_type)
+    # else:
+    #     print("unsupported degree")
     #npe - nodes per element (assume all are the same)
     npe = len(elements[0])
     #let it be rectangle
@@ -46,14 +46,15 @@ def set_up_matrix(d1, d2, p, m, element_type='D2QU4N', degree = 1):
 
 
 def set_up_vector(f, base, d1, d2, p, m, element_type='D2QU4N', degree = 1):
-    if degree==1:
-        nodes, elements = m2d.uniform_mesh_level1(d1, d2, p, m, element_type)
-    elif degree==2:
-        nodes, elements = m2d.uniform_mesh_level2(d1, d2, p, m, element_type)
-    elif degree==3:
-        nodes, elements = m2d.uniform_mesh_level3(d1, d2, p, m, element_type)
-    else:
-        print("unsupported degree")
+    # if degree==1:
+    #     nodes, elements = m2d.uniform_mesh_level1(d1, d2, p, m, element_type)
+    # elif degree==2:
+    #     nodes, elements = m2d.uniform_mesh_level2(d1, d2, p, m, element_type)
+    # elif degree==3:
+    #     nodes, elements = m2d.uniform_mesh_level3(d1, d2, p, m, element_type)
+    # else:
+    #     print("unsupported degree")
+    nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree)
 
     n = (degree*p+1)*(m*degree+1)
     h_x = d1 / p /degree; h_y = d2 / m /degree
