@@ -27,3 +27,14 @@ def element_matrix(m = 1):
             em[i][j] = int_1 + int_2
 
     return em
+
+def integrate_base_functions(base_functions):
+    vec = []
+    t = sp.symbols('t')
+    t_0, t_1, s, ksi_through_t, eta_through_t = bf2d.convert_ksieta_to_t()
+    for base_func in base_functions:
+        func = bf2d.substitute_t_to_base_func(base_func, ksi_through_t, eta_through_t)
+        # print(func)
+        vec.append(s*sp.integrate(func, (t, t_0, t_1)))
+
+    return vec

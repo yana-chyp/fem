@@ -1,4 +1,6 @@
 # from distutils.command.install import value
+from enum import Enum
+
 import numpy as np
 
 import mesh_2d as m2d
@@ -11,12 +13,25 @@ import scipy.integrate as scin
 
 def solve(b1, d1, b2, d2, p, m, degree, f, ug, element_type='D2QU4N'):
     nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree, b1, b2)
-    h_x = (d1-b1)/p /degree; h_y = (d2-b2)/m /degree; J = h_x*h_y/((ksi_right-ksi_left)*(eta_right-eta_left))
+    h_x = (d1-b1)/p /degree; h_y = (d2-b2)/m /degree; J = h_x*h_y/4
     matrix = set_up_matrix(nodes, elements, degree, J, p, m)
     base = bs2d.get_base_functions(degree)
+    vec_of_integrals = fe2d.integrate_base_functions(base)
+    print('vec of integrals:')
+    print('[' + ', '.join([f"{el:.4f}" for el in vec_of_integrals]) + ']')
+
     f_vec = set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m)
-    matrix, f_vec = apply_boundary_conditions(matrix, f_vec, p, m, nodes, ug, degree)
+    print('f_vec: ')
+    print('[' + ', '.join([f"{el:.4f}" for el in f_vec]) + ']')
+    # print('matrix: ')
+    matrix, f_vec = apply_boundary_conditions(matrix, f_vec, p, m, J, nodes, ug, elements, vec_of_integrals, degree)
+    # for row in matrix:
+    #     print('[' + ', '.join([f"{el:.3f}" for el in row]) + ']' )
+    print('f_vec: ')
+    print('[' + ', '.join([f"{el:.4f}" for el in f_vec]) + ']')
+
     u = np.linalg.solve(matrix, f_vec)
+    print('solution: ')
     print('[' + ', '.join([f"{el:.4f}" for el in u]) + ']')
     m2d.plot_2d_solution(u, nodes, elements)
 
@@ -55,8 +70,6 @@ def set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m):
 
     n = (degree*p+1)*(m*degree+1)
     h_x = (d1-b1) / p /degree; h_y = (d2-b2) / m /degree
-    # J = h_x * h_y / ((ksi_right - ksi_left) * (eta_right - eta_left))
-
     f_vec = [0 for i in range(n)]
     ksi = sp.symbols('ksi'); eta = sp.symbols('eta')
     x = sp.symbols('x'); y = sp.symbols('y')
@@ -78,40 +91,128 @@ def set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m):
 
 
 
-def get_boundary_points(p, m, degree = 1):
+def get_boundary_elements_and_nodes(p, m, ug, degree = 1):
     bounds = []
-    gamma_1 = []; gamma_2 = []; gamma_3 = []; gamma_4 = []
-    for j in range(degree*p+1):
-        gamma_1.append(j)
+    #gamma_i consists of [elements], [nodes]
+    elements_1 = [j for j in range(p)]
+    nodes_1 = [j for j in range(1, degree*p)]
+
+    elements_2 = [p*(i+1)-1 for i in range(m)]
+    nodes_2 = [(i+1)*(degree*p+1)-1 for i in range(1, degree*m)]
+
+    intersection = degree*p
+    # print(intersection)
+    if (ug[0][0]==TypeOfBoundCond.DIRICHLET):
+        nodes_1.append(intersection)
+        # print('1', nodes_1)
+    else:
+        nodes_2.insert(0, intersection)
+        # print('2', nodes_2)
+
+    elements_3 = [p*m-1-j for j in range(p)]
+    nodes_3 = [(degree*p+1)*degree*m + j for j in reversed(range(1, degree*p))]
+
+    intersection = (degree*p+1)*(degree*m+1)-1
+    # print(intersection)
+    if (ug[1][0]==TypeOfBoundCond.DIRICHLET):
+        nodes_2.append(intersection)
+        # print('2', nodes_2)
+    else:
+        nodes_3.insert(0, intersection)
+        # print('3', nodes_3)
+
+    elements_4 = [p*i for i in reversed(range(m))]
+    nodes_4 = [i*(degree*p+1) for i in reversed(range(1, degree*m))]
+
+    intersection = degree*m*(degree*p+1)
+    # print(intersection)
+    if (ug[2][0]==TypeOfBoundCond.DIRICHLET):
+        nodes_3.append(intersection)
+        # print('3', nodes_3)
+    else:
+        nodes_4.insert(0, intersection)
+        # print('4', nodes_4)
+
+    intersection = 0
+    # print(intersection)
+    if (ug[3][0]==TypeOfBoundCond.DIRICHLET):
+        nodes_4.append(intersection)
+        # print('4', nodes_4)
+    else:
+        nodes_1.insert(0, intersection)
+        # print('1', nodes_1)
+
+    gamma_1 = [elements_1, nodes_1]
     bounds.append(gamma_1)
-    for i in range(1, degree*m+1):
-        index = (i+1)*(degree*p+1)-1
-        gamma_2.append(index)
+    gamma_2 = [elements_2, nodes_2]
     bounds.append(gamma_2)
-    for j in reversed(range(degree*p)):
-        index = (degree*p+1)*degree*m + j
-        gamma_3.append(index)
+    gamma_3 = [elements_3, nodes_3]
     bounds.append(gamma_3)
-    for i in reversed(range(1, degree*m)):
-        index = i*(degree*p+1)
-        gamma_4.append(index)
+    gamma_4 = [elements_4, nodes_4]
     bounds.append(gamma_4)
     return bounds
 
-def apply_boundary_conditions(matrix, f_vec, p, m, nodes, ug, degree = 1):
-    bounds = get_boundary_points(p, m, degree)
-    # print(bounds)
-    n = len(ug)
-    for i in range(n):
-        for index in bounds[i]:
-            for j in range(len(matrix[index])):
-                matrix[index][j] = 0
-            matrix[index][index] = 1
-            f_vec[index] = ug[i](nodes[index][0], nodes[index][1])
+
+class TypeOfBoundCond(Enum):
+    DIRICHLET = 1
+    NEUMANN = 2
+
+# ug = [[TYPE, ug_3], [TYPE, ug_2], [TYPE, ug_4], [TYPE, ug_1]]
+
+def validate_boundary_conditions(ug):
+    isPresentDirichlet = False
+    for ug_ in ug:
+        if ug_[0] == TypeOfBoundCond.DIRICHLET:
+            isPresentDirichlet = True
+            break
+    if not isPresentDirichlet:
+        raise Exception("Wrong boundary conditions: all are Neumann, Dirichlet must be present")
+
+
+def apply_boundary_conditions(matrix, f_vec, p, m, J, nodes, ug, elements, vec_of_integrals, degree):
+    validate_boundary_conditions(ug)
+    bounds = get_boundary_elements_and_nodes(p, m, ug, degree)
+    print(bounds)
+    for i in range(len(ug)):
+        if ug[i][0]==TypeOfBoundCond.DIRICHLET:
+            apply_dirichlet(matrix, f_vec, nodes, bounds[i], ug[i][1])
+        # if ug[i][0]==TypeOfBoundCond.NEUMANN:
+        else:
+            apply_neumann(f_vec, vec_of_integrals, J, bounds[i], ug[i][1], elements, degree)
+    f_vec = np.float64(f_vec)
     return (matrix, f_vec)
 
+def apply_dirichlet(matrix, f_vec, nodes, bound, ug_func_i):
+    for index in bound[1]:
+        for j in range(len(matrix[index])):
+            matrix[index][j] = 0
+        matrix[index][index] = 1
+        f_vec[index] = ug_func_i(nodes[index][0], nodes[index][1])
 
+def apply_neumann(f_vec, vec_of_integrals, J, bound, ug_func, elements, degree):
+    # print(bound[0], bound[1])
+    # for index in bound[1]:
+    #     for j in range(len(matrix[index])):
+    #         matrix[index][j] = 0
+    #     matrix[index][index] = 1
+    for i in range(len(bound[0])):
+            #ioc - index of current node
+        for ioc in range(len(bound[1])):
+            #assume ug_func is a constant
+            #else must be put inside integral
+            # print(ioc, ug_func, ug_func(1,1))
+            f_vec[bound[1][ioc]] += ug_func(1, 1) * J * get_integral_for_node(bound[0][i], bound[1][ioc], vec_of_integrals, elements)
 
+def index_in_element(el_num, node_num, elements):
+    index = np.where(elements[el_num] == node_num)[0]
+    if index.size==0:
+        return -1
+    return index[0]
 
-
-
+def get_integral_for_node(el_num, node_num, vec_of_integrals, elements):
+    index = index_in_element(el_num, node_num, elements)
+    if index < 0:
+        return 0
+    # print(el_num, node_num, index)
+    #responds to the base function
+    return vec_of_integrals[index]
