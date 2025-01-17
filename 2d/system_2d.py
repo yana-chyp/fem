@@ -20,9 +20,9 @@ def solve(b1, d1, b2, d2, p, m, degree, f, ug, element_type='D2QU4N'):
     print('vec of integrals:')
     print('[' + ', '.join([f"{el:.4f}" for el in vec_of_integrals]) + ']')
 
-    f_vec = set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m)
-    print('f_vec: ')
-    print('[' + ', '.join([f"{el:.4f}" for el in f_vec]) + ']')
+    f_vec = set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m, J)
+    # print('f_vec: ')
+    # print('[' + ', '.join([f"{el:.4f}" for el in f_vec]) + ']')
     # print('matrix: ')
     matrix, f_vec = apply_boundary_conditions(matrix, f_vec, p, m, J, nodes, ug, elements, vec_of_integrals, degree)
     # for row in matrix:
@@ -65,7 +65,7 @@ def set_up_matrix(nodes, elements, degree, J, p, m):
     return matrix
 
 
-def set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m):
+def set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m, J):
     # nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree)
 
     n = (degree*p+1)*(m*degree+1)
@@ -77,15 +77,21 @@ def set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m):
     for ioe in range(len(elements)):
         noe = elements[ioe]
         x_0 = nodes[noe[0]][0]; y_0 = nodes[noe[0]][1]
-        lin_ksi = 2*(x - x_0)/h_x - 1
-        lin_eta = 2*(y - y_0)/h_y - 1
-        f_expr = sp.sympify(f(x, y))
+        # lin_ksi = 2*(x - x_0)/h_x - 1
+        # lin_eta = 2*(y - y_0)/h_y - 1
+        lin_x = (ksi+1)*h_x/2 + x_0
+        lin_y = (eta+1)*h_y/2 + y_0
+        f_expr = sp.sympify(f(x, y)).subs('x', lin_x).subs('y', lin_y)
+
+        print(f_expr)
         for i in range(len(noe)):
-            N_i = base[i].subs('ksi', lin_ksi)
-            N_i = N_i.subs('eta', lin_eta)
-            prod = sp.lambdify([x, y], N_i*f_expr)
-            value = scin.dblquad(prod, x_0, x_0+h_x, y_0, y_0+h_y)[0]
-            f_vec[noe[i]] += value
+            N_i = base[i]   #.subs('ksi', lin_ksi).subs('eta', lin_eta)
+            prod = N_i*f_expr
+            # print(prod)
+            prod = sp.lambdify([ksi, eta], prod)
+            value = scin.dblquad(prod, -1, 1, -1, 1)[0]
+            # print(ioe, x_0, x_0+h_x, y_0, y_0+h_y, value*J)
+            f_vec[noe[i]] += value*J
     return f_vec
 
 

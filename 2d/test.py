@@ -9,26 +9,26 @@ import system_2d as s2d
 import graph2d as g2d
 import mesh_2d as m2d
 def f(x, y):
-    # return 2
     return 0
-
+    # return 2
+    # return x
 # def exact_solution(x, y):
 #     return x*x
 
 def ug_1(x, y):
     return 0
 def ug_2(x, y):
-    return 1
-#     return (-(y-0.5)**2 + 0.25)*8 + 1
+    # return 1
+    return (-(y-0.5)**2 + 0.25)*8 + 1
 
 def ug_3(x, y):
     # return x
-    # return 0
-    return x*x
+    return 0
+    # return x*(1-x)
 def ug_4(x, y):
     # return x
-    return x*x
-    # return 0
+    # return x*(1-x)
+    return 0
 
 def g_1(x, y):
     return y==b2
@@ -47,9 +47,9 @@ p = 5
 m = 5
 degree = 2
 element_type='D2QU4N'
-ug = [[s2d.TypeOfBoundCond.DIRICHLET, ug_3],
+ug = [[s2d.TypeOfBoundCond.NEUMANN, ug_3],
       [s2d.TypeOfBoundCond.DIRICHLET, ug_2],
-      [s2d.TypeOfBoundCond.DIRICHLET, ug_4],
+      [s2d.TypeOfBoundCond.NEUMANN, ug_4],
       [s2d.TypeOfBoundCond.DIRICHLET, ug_1]]
 
 s2d.solve(b1, d1, b2, d2, p, m, degree, f, ug, element_type)
