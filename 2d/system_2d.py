@@ -1,4 +1,5 @@
 # from distutils.command.install import value
+import cmath
 from enum import Enum
 
 import numpy as np
@@ -12,28 +13,36 @@ import sympy as sp
 import scipy.integrate as scin
 
 def solve(b1, d1, b2, d2, p, m, degree, f, ug, element_type='D2QU4N'):
+    u, nodes, elements = get_solution(b1, d1, b2, d2, p, m, degree, f, ug, element_type)
+    m2d.plot_2d_solution(u, nodes, elements)
+
+def get_solution(b1, d1, b2, d2, p, m, degree, f, ug, element_type='D2QU4N'):
     nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree, b1, b2)
-    h_x = (d1-b1)/p /degree; h_y = (d2-b2)/m /degree; J = h_x*h_y/4
+    h_x = (d1 - b1) / p
+    h_y = (d2 - b2) / m
+    J = h_x * h_y / 4
+    #J = J / (4 * p * m)
+    # J = J * 4 / cmath.sqrt(p * m);
     matrix = set_up_matrix(nodes, elements, degree, J, p, m)
     base = bs2d.get_base_functions(degree)
-    vec_of_integrals = fe2d.integrate_base_functions(base)
-    print('vec of integrals:')
-    print('[' + ', '.join([f"{el:.4f}" for el in vec_of_integrals]) + ']')
+    vec_of_integrals = fe2d.integrate_base_functions(base, degree)
+    # print('vec of integrals:')
+    # print('[' + ', '.join([f"{el:.4f}" for el in vec_of_integrals]) + ']')
 
-    f_vec = set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m, J)
+    f_vec = set_up_vector(f, base, nodes, elements, degree, h_x, h_y, p, m)
     # print('f_vec: ')
     # print('[' + ', '.join([f"{el:.4f}" for el in f_vec]) + ']')
     # print('matrix: ')
-    matrix, f_vec = apply_boundary_conditions(matrix, f_vec, p, m, J, nodes, ug, elements, vec_of_integrals, degree)
     # for row in matrix:
     #     print('[' + ', '.join([f"{el:.3f}" for el in row]) + ']' )
-    print('f_vec: ')
-    print('[' + ', '.join([f"{el:.4f}" for el in f_vec]) + ']')
+    matrix, f_vec = apply_boundary_conditions(matrix, f_vec, p, m, J, nodes, ug, elements, vec_of_integrals, degree)
+    # print('f_vec: ')
+    # print('[' + ', '.join([f"{el:.4f}" for el in f_vec]) + ']')
 
     u = np.linalg.solve(matrix, f_vec)
-    print('solution: ')
-    print('[' + ', '.join([f"{el:.4f}" for el in u]) + ']')
-    m2d.plot_2d_solution(u, nodes, elements)
+    # print('solution: ')
+    # print('[' + ', '.join([f"{el:.4f}" for el in u]) + ']')
+    return u, nodes, elements
 
 
 def set_up_matrix(nodes, elements, degree, J, p, m):
@@ -65,11 +74,12 @@ def set_up_matrix(nodes, elements, degree, J, p, m):
     return matrix
 
 
-def set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m, J):
+def set_up_vector(f, base, nodes, elements, degree, h_x, h_y, p, m):
     # nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree)
 
     n = (degree*p+1)*(m*degree+1)
-    h_x = (d1-b1) / p /degree; h_y = (d2-b2) / m /degree
+    # h_x = (d1-b1) / p; h_y = (d2-b2) / m
+    J = h_x*h_y/4 #/ p / m / 4
     f_vec = [0 for i in range(n)]
     ksi = sp.symbols('ksi'); eta = sp.symbols('eta')
     x = sp.symbols('x'); y = sp.symbols('y')
@@ -83,7 +93,7 @@ def set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m, J):
         lin_y = (eta+1)*h_y/2 + y_0
         f_expr = sp.sympify(f(x, y)).subs('x', lin_x).subs('y', lin_y)
 
-        print(f_expr)
+        # print(f_expr)
         for i in range(len(noe)):
             N_i = base[i]   #.subs('ksi', lin_ksi).subs('eta', lin_eta)
             prod = N_i*f_expr
@@ -178,7 +188,7 @@ def validate_boundary_conditions(ug):
 def apply_boundary_conditions(matrix, f_vec, p, m, J, nodes, ug, elements, vec_of_integrals, degree):
     validate_boundary_conditions(ug)
     bounds = get_boundary_elements_and_nodes(p, m, ug, degree)
-    print(bounds)
+    # print(bounds)
     for i in range(len(ug)):
         if ug[i][0]==TypeOfBoundCond.DIRICHLET:
             apply_dirichlet(matrix, f_vec, nodes, bounds[i], ug[i][1])
@@ -207,7 +217,9 @@ def apply_neumann(f_vec, vec_of_integrals, J, bound, ug_func, elements, degree):
             #assume ug_func is a constant
             #else must be put inside integral
             # print(ioc, ug_func, ug_func(1,1))
+            # print('before: ', f_vec[bound[1][ioc]])
             f_vec[bound[1][ioc]] += ug_func(1, 1) * J * get_integral_for_node(bound[0][i], bound[1][ioc], vec_of_integrals, elements)
+            # print('after: ', f_vec[bound[1][ioc]])
 
 def index_in_element(el_num, node_num, elements):
     index = np.where(elements[el_num] == node_num)[0]
