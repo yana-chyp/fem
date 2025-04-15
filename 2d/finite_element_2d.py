@@ -28,10 +28,10 @@ def element_matrix(m = 1):
 
     return em
 
-def integrate_base_functions(base_functions):
+def integrate_base_functions(base_functions, degree = 1):
     vec = []
     t = sp.symbols('t')
-    t_0, t_1, s, ksi_through_t, eta_through_t = bf2d.convert_ksieta_to_t()
+    t_0, t_1, s, ksi_through_t, eta_through_t = bf2d.convert_ksieta_to_t(degree)
     for base_func in base_functions:
         func = bf2d.substitute_t_to_base_func(base_func, ksi_through_t, eta_through_t)
         # print(func)

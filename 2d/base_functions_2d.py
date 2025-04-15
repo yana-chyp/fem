@@ -11,7 +11,7 @@ eta_right = 1
     # eta =
     # return (ksi, eta)
 
-def convert_ksieta_to_t(ksi_0 = -1, ksi_1 = 1, eta_0 = -1, eta_1 = 1):
+def convert_ksieta_to_t(degree = 1, ksi_0 = -1, ksi_1 = 1, eta_0 = -1, eta_1 = 1):
     t_0 = 0; t_1 = 1
     s = ((ksi_1-ksi_0)**2 + (eta_1-eta_0)**2)**(1/2)
     t = sp.symbols('t')
