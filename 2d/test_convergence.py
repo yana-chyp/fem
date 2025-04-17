@@ -10,7 +10,7 @@ def u(x, y):
     # return x**2 - y**2
 
 def f(x, y):
-    return 2
+    return -2
 
 def ug_1(x, y):
     return y**2

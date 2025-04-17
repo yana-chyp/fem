@@ -30,6 +30,8 @@ def get_solution(b1, d1, b2, d2, p, m, degree, f, ug, element_type='D2QU4N'):
     # print('[' + ', '.join([f"{el:.4f}" for el in vec_of_integrals]) + ']')
 
     f_vec = set_up_vector(f, base, nodes, elements, degree, h_x, h_y, p, m)
+    f_vec = [v*J for v in f_vec]
+
     # print('f_vec: ')
     # print('[' + ', '.join([f"{el:.4f}" for el in f_vec]) + ']')
     # print('matrix: ')
