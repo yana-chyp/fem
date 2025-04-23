@@ -3,7 +3,7 @@ import system_2d as s2d
 import numpy as np
 import matplotlib.pyplot as plt
 
-def get_statistics_at_x(b1, d1, b2, d2, degree, f, ug, at_x, element_type, number = 3, u_analytical=None):
+def get_statistics_at_x(b1, d1, b2, d2, degree, f, ug, at_x, K = [1 ,1], element_type = 'D2QU4N', number = 3, u_analytical=None):
     n_mesh = 1
     tuples = []
     errors = []
@@ -11,7 +11,7 @@ def get_statistics_at_x(b1, d1, b2, d2, degree, f, ug, at_x, element_type, numbe
         n_mesh *= 2
         print(n_mesh)
 
-        u_values, nodes, elements = s2d.get_solution(b1, d1, b2, d2, n_mesh, n_mesh, degree, f, ug, element_type)
+        u_values, nodes, elements = s2d.get_solution(b1, d1, b2, d2, n_mesh, n_mesh, degree, f, ug, K, element_type)
         indices = extract_indices_at_x(at_x, nodes)
         y_values = extract_nodes_at_indices(nodes, indices)
         u_approx = extract_u_approx_indices(u_values, indices)    #extract u values where x==at_x
@@ -57,13 +57,14 @@ def extract_u_exact_at_fixed(u, nodes, indices):
 
 def calculate_error(u_exact, u_approx):
     n = len(u_approx)
+    # print('n = ', n)
     sum = 0
     for i in range(n):
         sum+=(u_exact[i]-u_approx[i])**2
     sum /= n
     return sum
 
-def get_statistics_at_y(b1, d1, b2, d2, degree, f, ug, at_y, element_type, number = 3, u_analytical=None):
+def get_statistics_at_y(b1, d1, b2, d2, degree, f, ug, at_y, K = [1, 1], element_type = 'D2QU4N', number = 3, u_analytical=None):
     n_mesh = 1
     tuples = []
     for i in range(number):

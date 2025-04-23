@@ -56,13 +56,14 @@ d2 = 1
 p = 8
 m = 8
 degree = 1
+K = [5, 10]
 element_type='D2QU4N'
 ug = [[s2d.TypeOfBoundCond.DIRICHLET, ug_3],
       [s2d.TypeOfBoundCond.NEUMANN, ug_2],
       [s2d.TypeOfBoundCond.DIRICHLET, ug_4],
       [s2d.TypeOfBoundCond.NEUMANN, ug_1]]
 
-s2d.solve(b1, d1, b2, d2, p, m, degree, f, ug, element_type)
+s2d.solve(b1, d1, b2, d2, p, m, degree, f, ug, K, element_type)
 
 # base = bs2d.get_base_functions(degree)
 # for f in base:

@@ -3,7 +3,7 @@ import sympy as sp
 import scipy.integrate as scin
 
 
-def element_matrix(m = 1):
+def element_matrix(m = 1, K = [1, 1]):
     n = (m+1)*(m+1)
     base = bf2d.get_base_functions(m)
     gradients = [[sp.diff(base[k], 'ksi'), sp.diff(base[k], 'eta')]  for k in range(n)]
@@ -24,7 +24,7 @@ def element_matrix(m = 1):
             int_1 = scin.dblquad(funcs[0], bf2d.ksi_left, bf2d.ksi_right, bf2d.eta_left, bf2d.eta_right)[0]
             int_2 = scin.dblquad(funcs[1], bf2d.ksi_left, bf2d.ksi_right, bf2d.eta_left, bf2d.eta_right)[0]
             # em[i][j] = [int_1, int_2]
-            em[i][j] = int_1 + int_2
+            em[i][j] = K[0]*int_1 + K[1]*int_2
 
     return em
 

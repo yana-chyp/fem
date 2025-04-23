@@ -12,18 +12,18 @@ from base_functions_2d import ksi_right, ksi_left, eta_right, eta_left
 import sympy as sp
 import scipy.integrate as scin
 
-def solve(b1, d1, b2, d2, p, m, degree, f, ug, element_type='D2QU4N'):
-    u, nodes, elements = get_solution(b1, d1, b2, d2, p, m, degree, f, ug, element_type)
+def solve(b1, d1, b2, d2, p, m, degree, f, ug, K = [1, 1], element_type='D2QU4N'):
+    u, nodes, elements = get_solution(b1, d1, b2, d2, p, m, degree, f, ug, K, element_type)
     m2d.plot_2d_solution(u, nodes, elements)
 
-def get_solution(b1, d1, b2, d2, p, m, degree, f, ug, element_type='D2QU4N'):
+def get_solution(b1, d1, b2, d2, p, m, degree, f, ug, K = [1, 1], element_type='D2QU4N'):
     nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree, b1, b2)
     h_x = (d1 - b1) / p
     h_y = (d2 - b2) / m
     J = h_x * h_y / 4
     #J = J / (4 * p * m)
     # J = J * 4 / cmath.sqrt(p * m);
-    matrix = set_up_matrix(nodes, elements, degree, J, p, m)
+    matrix = set_up_matrix(nodes, elements, degree, J, p, m, K)
     base = bs2d.get_base_functions(degree)
     vec_of_integrals = fe2d.integrate_base_functions(base, degree)
     # print('vec of integrals:')
@@ -47,7 +47,7 @@ def get_solution(b1, d1, b2, d2, p, m, degree, f, ug, element_type='D2QU4N'):
     return u, nodes, elements
 
 
-def set_up_matrix(nodes, elements, degree, J, p, m):
+def set_up_matrix(nodes, elements, degree, J, p, m, K = [1, 1]):
     # nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree)
     #npe - nodes per element (assume all are the same)
     npe = len(elements[0])
@@ -59,7 +59,7 @@ def set_up_matrix(nodes, elements, degree, J, p, m):
     n = (degree*p+1)*(degree*m+1)
     matrix = [[0 for j in range(n)] for i in range(n)]
 
-    em = fe2d.element_matrix(degree)
+    em = fe2d.element_matrix(degree, K)
     #ioe - index of element
     for ioe in range(len(elements)):
         #noe - nodes of element

@@ -36,6 +36,7 @@ d2 = 1
 # p = 5
 # m = 5
 degree = 1
+K = [1, 1]
 element_type='D2QU4N'
 ug = [[s2d.TypeOfBoundCond.DIRICHLET, ug_3],
       [s2d.TypeOfBoundCond.DIRICHLET, ug_2],
@@ -46,7 +47,7 @@ at_x = 0.5
 at_y = 0.5
 
 print('evaluating...')
-stat, errors = con.get_statistics_at_x(b1, d1, b2, d2, degree, f, ug, at_x, element_type, number, u)
+stat, errors = con.get_statistics_at_x(b1, d1, b2, d2, degree, f, ug, at_x, K, element_type, number, u)
 print('plotting statistics...')
 con.plot_statistics(b2, d2, at_x, stat, u)
 print('plotting errors...')
