@@ -247,8 +247,7 @@ def set_up_vector(f, nodes, elements,p, m, ap):
 
     return f_vec
 
-
-def compute_element_stiffness(elements, nodes, ap, k):
+def compute_element_stiffness(elements, nodes, ap, k1, k2):
     ksi, eta = sp.symbols('ksi eta')
     element_matrices = []
 
@@ -289,31 +288,23 @@ def compute_element_stiffness(elements, nodes, ap, k):
                         J_val = compute_jacobian(ksi_point, eta_point, x_coords, y_coords, dN_dksi_list, dN_deta_list)
                         J_inv = 1 / J_val
 
-                        # dN_i_dksi = dN_dksi_list[i].subs({ksi: ksi_point, eta: eta_point}).evalf()
-                        # dN_i_deta = dN_deta_list[i].subs({ksi: ksi_point, eta: eta_point}).evalf()
-                        # dN_j_dksi = dN_dksi_list[j].subs({ksi: ksi_point, eta: eta_point}).evalf()
-                        # dN_j_deta = dN_deta_list[j].subs({ksi: ksi_point, eta: eta_point}).evalf()
+
                         dN_i_dksi = dN_dksi_list[i](ksi_point, eta_point)
                         dN_i_deta = dN_deta_list[i](ksi_point, eta_point)
                         dN_j_dksi = dN_dksi_list[j](ksi_point, eta_point)
                         dN_j_deta = dN_deta_list[j](ksi_point, eta_point)
 
-                        # integrand = (dN_i_dksi * dN_j_dksi + dN_i_deta * dN_j_deta) * J_inv
-                        # integral_value += integrand * gauss_weights[ksi_idx] * gauss_weights[eta_idx]
-                        # Обчислюємо фізичні координати точки інтегрування
-                        # x_gp = sum(x_coords[n] * float(dN_dksi_list[n].subs({ksi: ksi_point, eta: eta_point})) for n in
-                        #            range(len(noe)))
-                        # y_gp = sum(y_coords[n] * float(dN_deta_list[n].subs({ksi: ksi_point, eta: eta_point})) for n in
-                        #            range(len(noe)))
+
                         x_gp = sum(x_coords[n] * dN_dksi_list[n](ksi_point, eta_point) for n in range(len(noe)))
                         y_gp = sum(y_coords[n] * dN_deta_list[n](ksi_point, eta_point) for n in range(len(noe)))
 
                         # Будування матриці
-                        # Значення коефіцієнта k в цій точці
-                        k_val = k(x_gp, y_gp)
+                        # Значення коефіцієнтів
+                        k1_val = k1(x_gp, y_gp)
+                        k2_val = k2(x_gp, y_gp)
 
                         # Інтегральний доданок з коефіцієнтом k(x, y)
-                        integrand = k_val * (dN_i_dksi * dN_j_dksi + dN_i_deta * dN_j_deta) * J_inv
+                        integrand = (k1_val * dN_i_dksi * dN_j_dksi + k2_val * dN_i_deta * dN_j_deta) * J_inv
                         integral_value += integrand * gauss_weights[ksi_idx] * gauss_weights[eta_idx]
 
                 K_local[i, j] = integral_value
@@ -321,6 +312,80 @@ def compute_element_stiffness(elements, nodes, ap, k):
         element_matrices.append(K_local)
 
     return element_matrices
+
+# def compute_element_stiffness(elements, nodes, ap, k):
+#     ksi, eta = sp.symbols('ksi eta')
+#     element_matrices = []
+#
+#     dN_dksi_list, dN_deta_list = compute_partial_derivatives(ap)
+#
+#     if ap == 1:
+#         gauss_points = [-1 / np.sqrt(3), 1 / np.sqrt(3)]
+#         gauss_weights = [1.0, 1.0]
+#     elif ap == 2:
+#         gauss_points = [-np.sqrt(3 / 5), 0, np.sqrt(3 / 5)]
+#         gauss_weights = [5 / 9, 8 / 9, 5 / 9]
+#     elif ap == 3:
+#         gauss_points = [
+#             -np.sqrt((3 / 7) - (2 / 7) * np.sqrt(6 / 5)),
+#             -np.sqrt((3 / 7) + (2 / 7) * np.sqrt(6 / 5)),
+#             np.sqrt((3 / 7) - (2 / 7) * np.sqrt(6 / 5)),
+#             np.sqrt((3 / 7) + (2 / 7) * np.sqrt(6 / 5))
+#         ]
+#         gauss_weights = [
+#             (18 - np.sqrt(30)) / 36,
+#             (18 + np.sqrt(30)) / 36,
+#             (18 - np.sqrt(30)) / 36,
+#             (18 + np.sqrt(30)) / 36
+#         ]
+#
+#     for noe in elements:
+#         x_coords = [nodes[i][0] for i in noe]
+#         y_coords = [nodes[i][1] for i in noe]
+#
+#         K_local = np.zeros((len(noe), len(noe)))
+#
+#         for i in range(len(noe)):
+#             for j in range(len(noe)):
+#                 integral_value = 0.0
+#
+#                 for ksi_idx, ksi_point in enumerate(gauss_points):
+#                     for eta_idx, eta_point in enumerate(gauss_points):
+#                         J_val = compute_jacobian(ksi_point, eta_point, x_coords, y_coords, dN_dksi_list, dN_deta_list)
+#                         J_inv = 1 / J_val
+#
+#                         # dN_i_dksi = dN_dksi_list[i].subs({ksi: ksi_point, eta: eta_point}).evalf()
+#                         # dN_i_deta = dN_deta_list[i].subs({ksi: ksi_point, eta: eta_point}).evalf()
+#                         # dN_j_dksi = dN_dksi_list[j].subs({ksi: ksi_point, eta: eta_point}).evalf()
+#                         # dN_j_deta = dN_deta_list[j].subs({ksi: ksi_point, eta: eta_point}).evalf()
+#                         dN_i_dksi = dN_dksi_list[i](ksi_point, eta_point)
+#                         dN_i_deta = dN_deta_list[i](ksi_point, eta_point)
+#                         dN_j_dksi = dN_dksi_list[j](ksi_point, eta_point)
+#                         dN_j_deta = dN_deta_list[j](ksi_point, eta_point)
+#
+#                         # integrand = (dN_i_dksi * dN_j_dksi + dN_i_deta * dN_j_deta) * J_inv
+#                         # integral_value += integrand * gauss_weights[ksi_idx] * gauss_weights[eta_idx]
+#                         # Обчислюємо фізичні координати точки інтегрування
+#                         # x_gp = sum(x_coords[n] * float(dN_dksi_list[n].subs({ksi: ksi_point, eta: eta_point})) for n in
+#                         #            range(len(noe)))
+#                         # y_gp = sum(y_coords[n] * float(dN_deta_list[n].subs({ksi: ksi_point, eta: eta_point})) for n in
+#                         #            range(len(noe)))
+#                         x_gp = sum(x_coords[n] * dN_dksi_list[n](ksi_point, eta_point) for n in range(len(noe)))
+#                         y_gp = sum(y_coords[n] * dN_deta_list[n](ksi_point, eta_point) for n in range(len(noe)))
+#
+#                         # Будування матриці
+#                         # Значення коефіцієнта k в цій точці
+#                         k_val = k(x_gp, y_gp)
+#
+#                         # Інтегральний доданок з коефіцієнтом k(x, y)
+#                         integrand = k_val * (dN_i_dksi * dN_j_dksi + dN_i_deta * dN_j_deta) * J_inv
+#                         integral_value += integrand * gauss_weights[ksi_idx] * gauss_weights[eta_idx]
+#
+#                 K_local[i, j] = integral_value
+#
+#         element_matrices.append(K_local)
+#
+#     return element_matrices
 
 
 def assemble_global_stiffness_matrix(nodes, elements, p, m, element_matrices, ap):
@@ -659,8 +724,9 @@ def ug_4(x, y):
     # return x**2+1
     # return x+1
 
-def k(x, y):
-    return 1
+# def k(x, y):
+#     return 1
+
 
 def calculate_L2_error(u_exact, u_values, nodes, elements, base, degree):
     from numpy.polynomial.legendre import leggauss
@@ -696,7 +762,8 @@ def calculate_L2_error(u_exact, u_values, nodes, elements, base, degree):
 
 def main():
     vertices = [(0, 0), (1, 0), (1, 1), (0, 1)]
-
+    k1 = lambda x, y: 2.0  # по x
+    k2 = lambda x, y: 1.0  # по y
     ap = 1
 
     ug = [
@@ -719,7 +786,7 @@ def main():
     #
     NL, EL= uniform_mesh_with_vertices(vertices, p, m, element_type, ap)
     f_load = set_up_vector(f, NL, EL, p, m, ap)
-    elem_matrices = compute_element_stiffness(EL, NL, ap, k)
+    elem_matrices = compute_element_stiffness(EL, NL, ap, k1=k1, k2=k2)
     matrix =  assemble_global_stiffness_matrix(NL, EL, p, m, elem_matrices, ap)
     print(matrix)
     matrix, f_load = apply_boundary_conditions(matrix, f_load, p, m, NL, ug, ap)
