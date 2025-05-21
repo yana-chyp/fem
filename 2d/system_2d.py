@@ -1,224 +1,310 @@
-# from distutils.command.install import value
-from enum import Enum
-
 import numpy as np
-
-import mesh_2d as m2d
-import base_functions_2d as bf2d
-import finite_element_2d as fe2d
-import base_functions_2d as bs2d
-from base_functions_2d import ksi_right, ksi_left, eta_right, eta_left
 import sympy as sp
-import scipy.integrate as scin
-
-def solve(b1, d1, b2, d2, p, m, degree, f, ug, element_type='D2QU4N'):
-    nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree, b1, b2)
-    h_x = (d1-b1)/p /degree; h_y = (d2-b2)/m /degree; J = h_x*h_y/4
-    matrix = set_up_matrix(nodes, elements, degree, J, p, m)
-    base = bs2d.get_base_functions(degree)
-    vec_of_integrals = fe2d.integrate_base_functions(base)
-    print('vec of integrals:')
-    print('[' + ', '.join([f"{el:.4f}" for el in vec_of_integrals]) + ']')
-
-    f_vec = set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m, J)
-    # print('f_vec: ')
-    # print('[' + ', '.join([f"{el:.4f}" for el in f_vec]) + ']')
-    # print('matrix: ')
-    matrix, f_vec = apply_boundary_conditions(matrix, f_vec, p, m, J, nodes, ug, elements, vec_of_integrals, degree)
-    # for row in matrix:
-    #     print('[' + ', '.join([f"{el:.3f}" for el in row]) + ']' )
-    print('f_vec: ')
-    print('[' + ', '.join([f"{el:.4f}" for el in f_vec]) + ']')
-
-    u = np.linalg.solve(matrix, f_vec)
-    print('solution: ')
-    print('[' + ', '.join([f"{el:.4f}" for el in u]) + ']')
-    m2d.plot_2d_solution(u, nodes, elements)
+import finite_element_2d as f2e
+import mesh_2d as m2d
+import base_functions_2d as b2f
+from scipy.spatial import distance
 
 
-def set_up_matrix(nodes, elements, degree, J, p, m):
-    # nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree)
-    #npe - nodes per element (assume all are the same)
-    npe = len(elements[0])
-    #let it be rectangle
+def set_up_vector(f, nodes, elements,p, m, ap):
+    f_vec = np.zeros((ap*p+1)*(ap*m+1))
 
-    #assume nodes are equidistant
-    # h_x = (d1-b1)/p /degree; h_y = (d2-b2)/m /degree; J = h_x*h_y/((ksi_right-ksi_left)*(eta_right-eta_left))
+    dN_dksi_list, dN_deta_list = f2e.compute_partial_derivatives(ap)
 
-    n = (degree*p+1)*(degree*m+1)
-    matrix = [[0 for j in range(n)] for i in range(n)]
+    if ap == 1:
+        gauss_points = [-1 / np.sqrt(3), 1 / np.sqrt(3)]
+        gauss_weights = [1.0, 1.0]
 
-    em = fe2d.element_matrix(degree)
-    #ioe - index of element
-    for ioe in range(len(elements)):
-        #noe - nodes of element
-        noe = elements[ioe]
-        # print(noe)
+    elif ap == 2:
+        gauss_points = [-np.sqrt(3 / 5), 0, np.sqrt(3 / 5)]
+        gauss_weights = [5 / 9, 8 / 9, 5 / 9]
+
+    elif ap == 3:
+        # gauss_points = [
+        #     -np.sqrt((3 / 7) - (2 / 7) * np.sqrt(6 / 5)),
+        #     -np.sqrt((3 / 7) + (2 / 7) * np.sqrt(6 / 5)),
+        #     np.sqrt((3 / 7) - (2 / 7) * np.sqrt(6 / 5)),
+        #     np.sqrt((3 / 7) + (2 / 7) * np.sqrt(6 / 5))
+        # ]
+        # gauss_weights = [
+        #     (18 - np.sqrt(30)) / 36,
+        #     (18 + np.sqrt(30)) / 36,
+        #     (18 - np.sqrt(30)) / 36,
+        #     (18 + np.sqrt(30)) / 36
+        # ]
+        # Using 4-point Gauss quadrature for higher accuracy
+        sqrt_3_7_plus = np.sqrt((3 + 2 * np.sqrt(6 / 5)) / 7)
+        sqrt_3_7_minus = np.sqrt((3 - 2 * np.sqrt(6 / 5)) / 7)
+
+        gauss_points = [-sqrt_3_7_minus, -sqrt_3_7_plus, sqrt_3_7_plus, sqrt_3_7_minus]
+
+        w_1 = (18 + np.sqrt(30)) / 36
+        w_2 = (18 - np.sqrt(30)) / 36
+
+        gauss_weights = [w_2, w_1, w_1, w_2]
+
+    # Обчислення інтегралів для кожного елемента
+    for ioe, noe in enumerate(elements):
+        x_coords = [nodes[i][0] for i in noe]
+        y_coords = [nodes[i][1] for i in noe]
+
         for i in range(len(noe)):
-            for j in range(len(noe)):
-                im = noe[i]
-                jm = noe[j]
-                value = em[i][j]*J
-                # print("(", i, ",  ", j, ") -> (", im, ", ", jm, "); value = ", f"{value:.4f}")
-                matrix[im][jm] += value
-            # print('[' + ', '.join([f"{el:.8f}" for el in matrix[i]]) + ']')
-    return matrix
+            integral_value = 0.0
 
+            for ksi_idx, ksi_point in enumerate(gauss_points):
+                for eta_idx, eta_point in enumerate(gauss_points):
+                    x_val, y_val = m2d.isoparametric_transform(ksi_point, eta_point, x_coords, y_coords, ap)
+                    # J_val = (compute_jacobian(ksi_point, eta_point, x_coords, y_coords, dN_dksi_list, dN_deta_list))
+                    # detJ = np.linalg.det(J_val)
+                    J = compute_jacobian(ksi_point, eta_point, x_coords, y_coords, dN_dksi_list, dN_deta_list)
+                    detJ = np.linalg.det(J)
+                    J_inv = np.linalg.inv(J)
+                    f_val = f(x_val, y_val)
+                    N_i = b2f.N(i, ksi_point, eta_point, ap)
 
-def set_up_vector(f, base, nodes, elements, degree, b1, d1, b2, d2, p, m, J):
-    # nodes, elements = m2d.uniform_mesh(d1, d2, p, m, element_type, degree)
+                    # Використання відповідних ваг Гаусса
+                    integral_value += N_i * f_val * detJ * gauss_weights[ksi_idx] * gauss_weights[eta_idx]
 
-    n = (degree*p+1)*(m*degree+1)
-    h_x = (d1-b1) / p /degree; h_y = (d2-b2) / m /degree
-    f_vec = [0 for i in range(n)]
-    ksi = sp.symbols('ksi'); eta = sp.symbols('eta')
-    x = sp.symbols('x'); y = sp.symbols('y')
+            f_vec[noe[i]] += integral_value
 
-    for ioe in range(len(elements)):
-        noe = elements[ioe]
-        x_0 = nodes[noe[0]][0]; y_0 = nodes[noe[0]][1]
-        # lin_ksi = 2*(x - x_0)/h_x - 1
-        # lin_eta = 2*(y - y_0)/h_y - 1
-        lin_x = (ksi+1)*h_x/2 + x_0
-        lin_y = (eta+1)*h_y/2 + y_0
-        f_expr = sp.sympify(f(x, y)).subs('x', lin_x).subs('y', lin_y)
-
-        print(f_expr)
-        for i in range(len(noe)):
-            N_i = base[i]   #.subs('ksi', lin_ksi).subs('eta', lin_eta)
-            prod = N_i*f_expr
-            # print(prod)
-            prod = sp.lambdify([ksi, eta], prod)
-            value = scin.dblquad(prod, -1, 1, -1, 1)[0]
-            # print(ioe, x_0, x_0+h_x, y_0, y_0+h_y, value*J)
-            f_vec[noe[i]] += value*J
     return f_vec
 
 
 
 
-def get_boundary_elements_and_nodes(p, m, ug, degree = 1):
-    bounds = []
-    #gamma_i consists of [elements], [nodes]
-    elements_1 = [j for j in range(p)]
-    nodes_1 = [j for j in range(1, degree*p)]
+def set_up_vector_point_sources(sources, strengths, nodes, p, m, ap):
 
-    elements_2 = [p*(i+1)-1 for i in range(m)]
-    nodes_2 = [(i+1)*(degree*p+1)-1 for i in range(1, degree*m)]
+    f_vec = np.zeros((ap * p + 1) * (ap * m + 1))
 
-    intersection = degree*p
-    # print(intersection)
-    if (ug[0][0]==TypeOfBoundCond.DIRICHLET):
-        nodes_1.append(intersection)
-        # print('1', nodes_1)
-    else:
-        nodes_2.insert(0, intersection)
-        # print('2', nodes_2)
+    used_nodes = set()
 
-    elements_3 = [p*m-1-j for j in range(p)]
-    nodes_3 = [(degree*p+1)*degree*m + j for j in reversed(range(1, degree*p))]
+    for (x0, y0), strength in zip(sources, strengths):
+        dists = [distance.euclidean((x0, y0), (x, y)) for (x, y) in nodes]
+        min_idx = np.argmin(dists)
 
-    intersection = (degree*p+1)*(degree*m+1)-1
-    # print(intersection)
-    if (ug[1][0]==TypeOfBoundCond.DIRICHLET):
-        nodes_2.append(intersection)
-        # print('2', nodes_2)
-    else:
-        nodes_3.insert(0, intersection)
-        # print('3', nodes_3)
-
-    elements_4 = [p*i for i in reversed(range(m))]
-    nodes_4 = [i*(degree*p+1) for i in reversed(range(1, degree*m))]
-
-    intersection = degree*m*(degree*p+1)
-    # print(intersection)
-    if (ug[2][0]==TypeOfBoundCond.DIRICHLET):
-        nodes_3.append(intersection)
-        # print('3', nodes_3)
-    else:
-        nodes_4.insert(0, intersection)
-        # print('4', nodes_4)
-
-    intersection = 0
-    # print(intersection)
-    if (ug[3][0]==TypeOfBoundCond.DIRICHLET):
-        nodes_4.append(intersection)
-        # print('4', nodes_4)
-    else:
-        nodes_1.insert(0, intersection)
-        # print('1', nodes_1)
-
-    gamma_1 = [elements_1, nodes_1]
-    bounds.append(gamma_1)
-    gamma_2 = [elements_2, nodes_2]
-    bounds.append(gamma_2)
-    gamma_3 = [elements_3, nodes_3]
-    bounds.append(gamma_3)
-    gamma_4 = [elements_4, nodes_4]
-    bounds.append(gamma_4)
-    return bounds
-
-
-class TypeOfBoundCond(Enum):
-    DIRICHLET = 1
-    NEUMANN = 2
-
-# ug = [[TYPE, ug_3], [TYPE, ug_2], [TYPE, ug_4], [TYPE, ug_1]]
-
-def validate_boundary_conditions(ug):
-    isPresentDirichlet = False
-    for ug_ in ug:
-        if ug_[0] == TypeOfBoundCond.DIRICHLET:
-            isPresentDirichlet = True
-            break
-    if not isPresentDirichlet:
-        raise Exception("Wrong boundary conditions: all are Neumann, Dirichlet must be present")
-
-
-def apply_boundary_conditions(matrix, f_vec, p, m, J, nodes, ug, elements, vec_of_integrals, degree):
-    validate_boundary_conditions(ug)
-    bounds = get_boundary_elements_and_nodes(p, m, ug, degree)
-    print(bounds)
-    for i in range(len(ug)):
-        if ug[i][0]==TypeOfBoundCond.DIRICHLET:
-            apply_dirichlet(matrix, f_vec, nodes, bounds[i], ug[i][1])
-        # if ug[i][0]==TypeOfBoundCond.NEUMANN:
+        if min_idx not in used_nodes:
+            f_vec[min_idx] += strength
+            used_nodes.add(min_idx)
         else:
-            apply_neumann(f_vec, vec_of_integrals, J, bounds[i], ug[i][1], elements, degree)
-    f_vec = np.float64(f_vec)
-    return (matrix, f_vec)
+            print(f"Увага: вузол {min_idx} вже має джерело, можливо перекриття.")
 
-def apply_dirichlet(matrix, f_vec, nodes, bound, ug_func_i):
-    for index in bound[1]:
-        for j in range(len(matrix[index])):
-            matrix[index][j] = 0
-        matrix[index][index] = 1
-        f_vec[index] = ug_func_i(nodes[index][0], nodes[index][1])
+    return f_vec
 
-def apply_neumann(f_vec, vec_of_integrals, J, bound, ug_func, elements, degree):
-    # print(bound[0], bound[1])
-    # for index in bound[1]:
-    #     for j in range(len(matrix[index])):
-    #         matrix[index][j] = 0
-    #     matrix[index][index] = 1
-    for i in range(len(bound[0])):
-            #ioc - index of current node
-        for ioc in range(len(bound[1])):
-            #assume ug_func is a constant
-            #else must be put inside integral
-            # print(ioc, ug_func, ug_func(1,1))
-            f_vec[bound[1][ioc]] += ug_func(1, 1) * J * get_integral_for_node(bound[0][i], bound[1][ioc], vec_of_integrals, elements)
 
-def index_in_element(el_num, node_num, elements):
-    index = np.where(elements[el_num] == node_num)[0]
-    if index.size==0:
-        return -1
-    return index[0]
+def compute_element_stiffness(elements, nodes, ap, k1, k2):
+    ksi, eta = sp.symbols('ksi eta')
+    element_matrices = []
 
-def get_integral_for_node(el_num, node_num, vec_of_integrals, elements):
-    index = index_in_element(el_num, node_num, elements)
-    if index < 0:
-        return 0
-    # print(el_num, node_num, index)
-    #responds to the base function
-    return vec_of_integrals[index]
+    dN_dksi_list, dN_deta_list = f2e.compute_partial_derivatives(ap)
+
+    if ap == 1:
+        gauss_points = [-1 / np.sqrt(3), 1 / np.sqrt(3)]
+        gauss_weights = [1.0, 1.0]
+    elif ap == 2:
+        gauss_points = [-np.sqrt(3 / 5), 0, np.sqrt(3 / 5)]
+        gauss_weights = [5 / 9, 8 / 9, 5 / 9]
+    elif ap == 3:
+        # gauss_points = [
+        #     -np.sqrt((3 / 7) - (2 / 7) * np.sqrt(6 / 5)),
+        #     -np.sqrt((3 / 7) + (2 / 7) * np.sqrt(6 / 5)),
+        #     np.sqrt((3 / 7) - (2 / 7) * np.sqrt(6 / 5)),
+        #     np.sqrt((3 / 7) + (2 / 7) * np.sqrt(6 / 5))
+        # ]
+        # gauss_weights = [
+        #     (18 - np.sqrt(30)) / 36,
+        #     (18 + np.sqrt(30)) / 36,
+        #     (18 - np.sqrt(30)) / 36,
+        #     (18 + np.sqrt(30)) / 36
+        # ]
+        # 4-point Gauss quadrature
+        sqrt_3_7_plus = np.sqrt((3 + 2 * np.sqrt(6 / 5)) / 7)
+        sqrt_3_7_minus = np.sqrt((3 - 2 * np.sqrt(6 / 5)) / 7)
+
+        gauss_points = [-sqrt_3_7_minus, -sqrt_3_7_plus, sqrt_3_7_plus, sqrt_3_7_minus]
+
+        w_1 = (18 + np.sqrt(30)) / 36
+        w_2 = (18 - np.sqrt(30)) / 36
+
+        gauss_weights = [w_2, w_1, w_1, w_2]
+
+    for noe in elements:
+        x_coords = [nodes[i][0] for i in noe]
+        y_coords = [nodes[i][1] for i in noe]
+
+        K_local = np.zeros((len(noe), len(noe)))
+
+        for i in range(len(noe)):
+            for j in range(len(noe)):
+                integral_value = 0.0
+
+                for ksi_idx, ksi_point in enumerate(gauss_points):
+                    for eta_idx, eta_point in enumerate(gauss_points):
+                        J = compute_jacobian(ksi_point, eta_point, x_coords, y_coords, dN_dksi_list, dN_deta_list)
+                        detJ = np.linalg.det(J)
+                        J_inv = np.linalg.inv(J)
+
+
+                        dN_i_dksi = dN_dksi_list[i](ksi_point, eta_point)
+                        dN_i_deta = dN_deta_list[i](ksi_point, eta_point)
+                        dN_j_dksi = dN_dksi_list[j](ksi_point, eta_point)
+                        dN_j_deta = dN_deta_list[j](ksi_point, eta_point)
+
+
+                        # x_gp = sum(x_coords[n] * dN_dksi_list[n](ksi_point, eta_point) for n in range(len(noe)))
+                        # y_gp = sum(y_coords[n] * dN_deta_list[n](ksi_point, eta_point) for n in range(len(noe)))
+                        x_gp = sum(x_coords[n] * b2f.N(n, ksi_point, eta_point, ap) for n in range(len(noe)))
+                        y_gp = sum(y_coords[n] * b2f.N(n, ksi_point, eta_point, ap) for n in range(len(noe)))
+
+                        # Будування матриці
+                        # Значення коефіцієнтів
+                        k1_val = k1(x_gp, y_gp)
+                        k2_val = k2(x_gp, y_gp)
+                        # grad_N_i = J_inv @ np.array([dN_i_dksi, dN_i_deta])
+                        # grad_N_j = J_inv @ np.array([dN_j_dksi, dN_j_deta])
+                        dN_i = np.array([dN_i_dksi, dN_i_deta])  # тепер (2,)
+                        grad_N_i = J_inv @ dN_i  # також (2,)
+                        dN_j = np.array([dN_j_dksi, dN_j_deta])  # (2,)
+                        grad_N_j = J_inv @ dN_j
+
+                        # Інтегральний доданок з коефіцієнтом k(x, y)
+                        integrand = float((k1_val * grad_N_i[0] * grad_N_j[0] +
+                                           k2_val * grad_N_i[1] * grad_N_j[1]) * abs(detJ))
+                        if isinstance(integrand, np.ndarray):
+                            integrand = integrand.item()
+                        integral_value += integrand * gauss_weights[ksi_idx] * gauss_weights[eta_idx]
+
+                K_local[i, j] = float(integral_value)
+
+        element_matrices.append(K_local)
+
+    return element_matrices
+
+# def compute_element_stiffness(elements, nodes, ap, k):
+#     ksi, eta = sp.symbols('ksi eta')
+#     element_matrices = []
+#
+#     dN_dksi_list, dN_deta_list = compute_partial_derivatives(ap)
+#
+#     if ap == 1:
+#         gauss_points = [-1 / np.sqrt(3), 1 / np.sqrt(3)]
+#         gauss_weights = [1.0, 1.0]
+#     elif ap == 2:
+#         gauss_points = [-np.sqrt(3 / 5), 0, np.sqrt(3 / 5)]
+#         gauss_weights = [5 / 9, 8 / 9, 5 / 9]
+#     elif ap == 3:
+#         gauss_points = [
+#             -np.sqrt((3 / 7) - (2 / 7) * np.sqrt(6 / 5)),
+#             -np.sqrt((3 / 7) + (2 / 7) * np.sqrt(6 / 5)),
+#             np.sqrt((3 / 7) - (2 / 7) * np.sqrt(6 / 5)),
+#             np.sqrt((3 / 7) + (2 / 7) * np.sqrt(6 / 5))
+#         ]
+#         gauss_weights = [
+#             (18 - np.sqrt(30)) / 36,
+#             (18 + np.sqrt(30)) / 36,
+#             (18 - np.sqrt(30)) / 36,
+#             (18 + np.sqrt(30)) / 36
+#         ]
+#
+#     for noe in elements:
+#         x_coords = [nodes[i][0] for i in noe]
+#         y_coords = [nodes[i][1] for i in noe]
+#
+#         K_local = np.zeros((len(noe), len(noe)))
+#
+#         for i in range(len(noe)):
+#             for j in range(len(noe)):
+#                 integral_value = 0.0
+#
+#                 for ksi_idx, ksi_point in enumerate(gauss_points):
+#                     for eta_idx, eta_point in enumerate(gauss_points):
+#                         J_val = compute_jacobian(ksi_point, eta_point, x_coords, y_coords, dN_dksi_list, dN_deta_list)
+#                         J_inv = 1 / J_val
+#
+#                         # dN_i_dksi = dN_dksi_list[i].subs({ksi: ksi_point, eta: eta_point}).evalf()
+#                         # dN_i_deta = dN_deta_list[i].subs({ksi: ksi_point, eta: eta_point}).evalf()
+#                         # dN_j_dksi = dN_dksi_list[j].subs({ksi: ksi_point, eta: eta_point}).evalf()
+#                         # dN_j_deta = dN_deta_list[j].subs({ksi: ksi_point, eta: eta_point}).evalf()
+#                         dN_i_dksi = dN_dksi_list[i](ksi_point, eta_point)
+#                         dN_i_deta = dN_deta_list[i](ksi_point, eta_point)
+#                         dN_j_dksi = dN_dksi_list[j](ksi_point, eta_point)
+#                         dN_j_deta = dN_deta_list[j](ksi_point, eta_point)
+#
+#                         # integrand = (dN_i_dksi * dN_j_dksi + dN_i_deta * dN_j_deta) * J_inv
+#                         # integral_value += integrand * gauss_weights[ksi_idx] * gauss_weights[eta_idx]
+#                         # Обчислюємо фізичні координати точки інтегрування
+#                         # x_gp = sum(x_coords[n] * float(dN_dksi_list[n].subs({ksi: ksi_point, eta: eta_point})) for n in
+#                         #            range(len(noe)))
+#                         # y_gp = sum(y_coords[n] * float(dN_deta_list[n].subs({ksi: ksi_point, eta: eta_point})) for n in
+#                         #            range(len(noe)))
+#                         x_gp = sum(x_coords[n] * dN_dksi_list[n](ksi_point, eta_point) for n in range(len(noe)))
+#                         y_gp = sum(y_coords[n] * dN_deta_list[n](ksi_point, eta_point) for n in range(len(noe)))
+#
+#                         # Будування матриці
+#                         # Значення коефіцієнта k в цій точці
+#                         k_val = k(x_gp, y_gp)
+#
+#                         # Інтегральний доданок з коефіцієнтом k(x, y)
+#                         integrand = k_val * (dN_i_dksi * dN_j_dksi + dN_i_deta * dN_j_deta) * J_inv
+#                         integral_value += integrand * gauss_weights[ksi_idx] * gauss_weights[eta_idx]
+#
+#                 K_local[i, j] = integral_value
+#
+#         element_matrices.append(K_local)
+#
+#     return element_matrices
+
+
+def assemble_global_stiffness_matrix(nodes, elements, p, m, element_matrices, ap):
+    num_nodes = (ap*p+1)*(ap*m+1)
+    K = np.zeros((num_nodes, num_nodes))
+
+    for elem_idx, noe in enumerate(elements):
+        em = element_matrices[elem_idx]
+
+        for i in range(len(noe)):
+            for j in range(len(noe)):
+                im = noe[i]
+                jm = noe[j]
+                K[im, jm] += em[i, j]
+
+    return K
+
+# def compute_jacobian(ksi, eta, x_coords, y_coords, dN_dksi_list, dN_deta_list):
+#     dx_dksi = sum(dN_dksi_list[j].subs({sp.symbols('ksi'): ksi, sp.symbols('eta'): eta}).evalf() * x_coords[j] for j in range(len(x_coords)))
+#     dx_deta = sum(dN_deta_list[j].subs({sp.symbols('ksi'): ksi, sp.symbols('eta'): eta}).evalf() * x_coords[j] for j in range(len(x_coords)))
+#     dy_dksi = sum(dN_dksi_list[j].subs({sp.symbols('ksi'): ksi, sp.symbols('eta'): eta}).evalf() * y_coords[j] for j in range(len(y_coords)))
+#     dy_deta = sum(dN_deta_list[j].subs({sp.symbols('ksi'): ksi, sp.symbols('eta'): eta}).evalf() * y_coords[j] for j in range(len(y_coords)))
+#
+#     J_val = abs(dx_dksi * dy_deta - dx_deta * dy_dksi)
+#     return J_val
+def compute_jacobian(ksi, eta, x_coords, y_coords, dN_dksi_funcs, dN_deta_funcs):
+    dx_dksi = sum(dN_dksi_funcs[j](ksi, eta) * x_coords[j] for j in range(len(x_coords)))
+    dx_deta = sum(dN_deta_funcs[j](ksi, eta) * x_coords[j] for j in range(len(x_coords)))
+    dy_dksi = sum(dN_dksi_funcs[j](ksi, eta) * y_coords[j] for j in range(len(y_coords)))
+    dy_deta = sum(dN_deta_funcs[j](ksi, eta) * y_coords[j] for j in range(len(y_coords)))
+
+    # J_val = abs(dx_dksi * dy_deta - dx_deta * dy_dksi)
+    # return J_val
+    J = np.array([[dx_dksi, dx_deta],
+                  [dy_dksi, dy_deta]])
+    return J
+
+
+
+# Функція для обчислення частинних похідних
+# def compute_partial_derivatives(ap):
+#     ksi, eta = sp.symbols('ksi eta')
+#
+#     num_nodes = 4 if ap == 1 else (9 if ap == 2 else 16)
+#     dN_dksi_list = []
+#     dN_deta_list = []
+#
+#     for i in range(num_nodes):
+#         Ni = N(i, ksi, eta, ap)
+#         dN_dksi = sp.diff(Ni, ksi)
+#         dN_deta = sp.diff(Ni, eta)
+#         dN_dksi_list.append(dN_dksi)
+#         dN_deta_list.append(dN_deta)
+#
+#     return dN_dksi_list, dN_deta_list
+

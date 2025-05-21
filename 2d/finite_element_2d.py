@@ -1,40 +1,136 @@
-import base_functions_2d as bf2d
+import numpy as np
 import sympy as sp
-import scipy.integrate as scin
+from enum import Enum
+import base_functions_2d as b2f
 
 
-def element_matrix(m = 1):
-    n = (m+1)*(m+1)
-    base = bf2d.get_base_functions(m)
-    gradients = [[sp.diff(base[k], 'ksi'), sp.diff(base[k], 'eta')]  for k in range(n)]
-    # print(gradients)
+def compute_partial_derivatives(ap):
+    ksi, eta = sp.symbols('ksi eta')
 
-    #element matrix. set up of integrals of scalar products of gradients
-    # em = [[[0,0] for j in range(n)] for i in range(n)]
-    em = [[0 for j in range(n)] for i in range(n)]
+    num_nodes = 4 if ap == 1 else (9 if ap == 2 else 16)
+    dN_dksi_funcs = []
+    dN_deta_funcs = []
 
-    # print("products")
-    ksi = sp.symbols('ksi')
-    eta = sp.symbols('eta')
+    for i in range(num_nodes):
+        Ni = b2f.N(i, ksi, eta, ap)
+        dN_dksi = sp.diff(Ni, ksi)
+        dN_deta = sp.diff(Ni, eta)
+
+        # Використовуємо lambdify замість подальших підстановок у циклі
+        dN_dksi_func = sp.lambdify((ksi, eta), dN_dksi, modules="numpy")
+        dN_deta_func = sp.lambdify((ksi, eta), dN_deta, modules="numpy")
+
+        dN_dksi_funcs.append(dN_dksi_func)
+        dN_deta_funcs.append(dN_deta_func)
+
+    return dN_dksi_funcs, dN_deta_funcs
+
+
+def apply_boundary_conditions(matrix, f_load, p, m, nodes, ug, ap = 1):
+    validate_boundary_conditions(ug)
+    bounds = get_boundary_elements_and_nodes(p, m, ug, ap)
+    n = len(ug)
     for i in range(n):
-        for j in range(n):
-            prods = (gradients[i][0]*gradients[j][0], gradients[i][1]*gradients[j][1])
-            funcs = (sp.lambdify([ksi, eta], prods[0]), sp.lambdify([ksi, eta], prods[1]))
-            # print(func)
-            int_1 = scin.dblquad(funcs[0], bf2d.ksi_left, bf2d.ksi_right, bf2d.eta_left, bf2d.eta_right)[0]
-            int_2 = scin.dblquad(funcs[1], bf2d.ksi_left, bf2d.ksi_right, bf2d.eta_left, bf2d.eta_right)[0]
-            # em[i][j] = [int_1, int_2]
-            em[i][j] = int_1 + int_2
+        for index in bounds[i][1]:  # [1] — список вузлів
+            for j in range(len(matrix[index])):
+                matrix[index][j] = 0
+            matrix[index][index] = 1
+            f_load[index] = ug[i][1](nodes[index][0], nodes[index][1])  # <== ось тут виправлено
+    return (matrix, f_load)
 
-    return em
 
-def integrate_base_functions(base_functions):
-    vec = []
-    t = sp.symbols('t')
-    t_0, t_1, s, ksi_through_t, eta_through_t = bf2d.convert_ksieta_to_t()
-    for base_func in base_functions:
-        func = bf2d.substitute_t_to_base_func(base_func, ksi_through_t, eta_through_t)
-        # print(func)
-        vec.append(s*sp.integrate(func, (t, t_0, t_1)))
+def get_boundary_elements_and_nodes(p, m, ug, degree = 1):
+    bounds = []
+    #gamma_i consists of [elements], [nodes]
+    elements_1 = [j for j in range(p)]
+    nodes_1 = [j for j in range(1, degree*p)]
 
-    return vec
+    elements_2 = [p*(i+1)-1 for i in range(m)]
+    nodes_2 = [(i+1)*(degree*p+1)-1 for i in range(1, degree*m)]
+
+    intersection = degree*p
+    # print(intersection)
+    if (ug[0][0]==TypeOfBoundCond.DIRICHLET):
+        nodes_1.append(intersection)
+        # print('1', nodes_1)
+    else:
+        nodes_2.insert(0, intersection)
+        # print('2', nodes_2)
+
+    elements_3 = [p*m-1-j for j in range(p)]
+    nodes_3 = [(degree*p+1)*degree*m + j for j in reversed(range(1, degree*p))]
+
+    intersection = (degree*p+1)*(degree*m+1)-1
+    # print(intersection)
+    if (ug[1][0]==TypeOfBoundCond.DIRICHLET):
+        nodes_2.append(intersection)
+        # print('2', nodes_2)
+    else:
+        nodes_3.insert(0, intersection)
+        # print('3', nodes_3)
+
+    elements_4 = [p*i for i in reversed(range(m))]
+    nodes_4 = [i*(degree*p+1) for i in reversed(range(1, degree*m))]
+
+    intersection = degree*m*(degree*p+1)
+    # print(intersection)
+    if (ug[2][0]==TypeOfBoundCond.DIRICHLET):
+        nodes_3.append(intersection)
+        # print('3', nodes_3)
+    else:
+        nodes_4.insert(0, intersection)
+        # print('4', nodes_4)
+
+    intersection = 0
+    # print(intersection)
+    if (ug[3][0]==TypeOfBoundCond.DIRICHLET):
+        nodes_4.append(intersection)
+        # print('4', nodes_4)
+    else:
+        nodes_1.insert(0, intersection)
+        # print('1', nodes_1)
+
+    gamma_1 = [elements_1, nodes_1]
+    bounds.append(gamma_1)
+    gamma_2 = [elements_2, nodes_2]
+    bounds.append(gamma_2)
+    gamma_3 = [elements_3, nodes_3]
+    bounds.append(gamma_3)
+    gamma_4 = [elements_4, nodes_4]
+    bounds.append(gamma_4)
+    return bounds
+
+
+class TypeOfBoundCond(Enum):
+    DIRICHLET = 1
+    NEUMANN = 2
+
+
+def validate_boundary_conditions(ug):
+    isPresentDirichlet = False
+    for ug_ in ug:
+        if ug_[0] == TypeOfBoundCond.DIRICHLET:
+            isPresentDirichlet = True
+            break
+    if not isPresentDirichlet:
+        raise Exception("Wrong boundary conditions: all are Neumann, Dirichlet must be present")
+
+def get_boundary_points(p, m, ap = 1):
+    bounds = []
+    gamma_1 = []; gamma_2 = []; gamma_3 = []; gamma_4 = []
+    for j in range(ap*p+1):
+        gamma_1.append(j)
+    bounds.append(gamma_1)
+    for i in range(1, ap*m+1):
+        index = (i+1)*(ap*p+1)-1
+        gamma_2.append(index)
+    bounds.append(gamma_2)
+    for j in reversed(range(ap*p)):
+        index = (ap*p+1)*ap*m + j
+        gamma_3.append(index)
+    bounds.append(gamma_3)
+    for i in reversed(range(1, ap*m)):
+        index = i*(ap*p+1)
+        gamma_4.append(index)
+    bounds.append(gamma_4)
+    return bounds

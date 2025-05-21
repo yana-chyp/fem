@@ -1,175 +1,74 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import sympy as sp
-from scipy.integrate import dblquad
-import scipy.integrate as scin
-from mpl_toolkits.mplot3d import Axes3D
+import base_functions_2d as b2f
+import finite_element_2d as f2e
+import mesh_2d as m2d
+from scipy.interpolate import griddata
 
 
-ksi_left = -1
-ksi_right = 1
-eta_left = -1
-eta_right = 1
+def plot_statistics(start, end, statistics, u_exact, n_points=100):
+    """
+    Малює u вздовж відрізка від точки start до end.
+    """
+    abscissas = np.linspace(0, 1, n_points)
+    xs = [(1 - t) * start[0] + t * end[0] for t in abscissas]
+    ys = [(1 - t) * start[1] + t * end[1] for t in abscissas]
+    u_values = [u_exact(x, y) for x, y in zip(xs, ys)]
 
-def f(x, y):
-    return (1 + x**2)*(1 + 2*y**2)
+    plt.plot(abscissas, u_values, color='red', label='u exact')
 
-def uniform_mesh(d1, d2, p, m, element_type):
-    PD = 2  # Простір (x, y)
-    q = np.array([[0, 0], [d1, 0], [0, d2], [d1, d2]])  # 4 кути прямокутника
+    for i, (x_approx, u_approx) in enumerate(statistics):
+        plt.plot(x_approx, u_approx, label=f'approx {i}')
 
-    NoN = (p + 1) * (m + 1)  # Кількість вузлів
-    NoE = p * m  # Кількість елементів (для прямокутників)
-    NPE = 4 if element_type == 'D2QU4N' else 3  # Кількість вузлів на елемент
-
-    NL = np.zeros([NoN, PD])
-    a = (q[1, 0] - q[0, 0]) / p  # Інкременти по x
-    b = (q[2, 1] - q[0, 1]) / m  # Інкременти по y
-
-    n = 0
-    for i in range(m + 1):
-        for j in range(p + 1):
-            NL[n, 0] = q[0, 0] + j * a  # Значення x
-            NL[n, 1] = q[0, 1] + i * b  # Значення y
-            n += 1
-
-    if element_type == 'D2QU4N':  # Прямокутники
-        EL = np.zeros([NoE, NPE], dtype=int)
-        for i in range(m):
-            for j in range(p):
-                n1 = i * (p + 1) + j
-                n2 = n1 + 1
-                n3 = n1 + (p + 1)
-                n4 = n3 + 1
-                EL[i * p + j] = [n1, n2, n4, n3]
-    elif element_type == 'D2TR3N':  # Трикутники
-        EL = np.zeros([NoE * 2, NPE], dtype=int)  # Подвійна кількість елементів для трикутників
-        e = 0
-        for i in range(m):
-            for j in range(p):
-                n1 = i * (p + 1) + j
-                n2 = n1 + 1
-                n3 = n1 + (p + 1)
-                n4 = n3 + 1
-                # Перший трикутник
-                EL[e] = [n1, n2, n4]
-                e += 1
-                # Другий трикутник
-                EL[e] = [n1, n4, n3]
-                e += 1
-    else:
-        raise ValueError("Неправильний тип елемента. Використовуйте 'D2QU4N' або 'D2TR3N'.")
-
-    return NL, EL
-
-def get_base_functions(m=1):
-    # Повертає базисні функції для m+1 x m+1 вузлів
-    n = (m + 1) * (m + 1)  # Кількість вузлів
-    base_functions = [0 for _ in range(n)]
-    ksi, eta = sp.symbols('ksi eta')
-
-    # Координати вузлів у локальній системі
-    h_ksi = (ksi_right - ksi_left) / m
-    h_eta = (eta_right - eta_left) / m
-
-    submesh = [[ksi_left + j * h_ksi, eta_left + i * h_eta]
-               for i in range(m + 1) for j in range(m + 1)]
-
-    for i in range(n):
-        expression = 1
-        for k in range(n):
-            if k != i:
-                dx = submesh[i][0] - submesh[k][0]
-                dy = submesh[i][1] - submesh[k][1]
-                if dx != 0:
-                    expression *= (ksi - submesh[k][0]) / dx
-                if dy != 0:
-                    expression *= (eta - submesh[k][1]) / dy
-        base_functions[i] = expression  # Без спрощення на цьому етапі
-
-    return base_functions
+    plt.xlabel('normalized distance along line')
+    plt.ylabel('u')
+    plt.title('Exact vs Approx Solutions')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
 
-def N(i, ksi, eta):
-    """Базисні функції для 4-кутних елементів."""
-    if i == 0:
-        return (1 - ksi) * (1 - eta) / 4
-    elif i == 1:
-        return (1 + ksi) * (1 - eta) / 4
-    elif i == 2:
-        return (1 + ksi) * (1 + eta) / 4
-    elif i == 3:
-        return (1 - ksi) * (1 + eta) / 4
-    return 0
+def plot_errors(errors):
+    plt.plot([i for i in range(len(errors))], errors, color='green')
+    plt.xlabel('degree of nodes')
+    plt.ylabel('errors')
+    plt.grid(True)
+    plt.show()
 
-def calculate_b(NL, EL, p, m):
-    """Обчислення вектора правої частини для заданої сітки."""
-    b = np.zeros(NL.shape[0])  # Ініціалізація глобального вектора правої частини
 
-    # Інтегрування для кожного елемента
-    for e in range(EL.shape[0]):
-        nodes = EL[e]  # Вузли елемента
-        x_coords = NL[nodes, 0]
-        y_coords = NL[nodes, 1]
+def interpolate_solution(x, y, u, NL, EL, ap):
+    from scipy.optimize import root
 
-        # Вирази для перетворення координат
-        def x_expr(ksi, eta):
-            return sum(N(i, ksi, eta) * x_coords[i] for i in range(4))
+    num_nodes = 4 if ap == 1 else (9 if ap == 2 else 16)
 
-        def y_expr(ksi, eta):
-            return sum(N(i, ksi, eta) * y_coords[i] for i in range(4))
+    for element in EL:
+        nodes_coords = [NL[i] for i in element]
+        x_coords = [pt[0] for pt in nodes_coords]
+        y_coords = [pt[1] for pt in nodes_coords]
 
-        # Детермінант Якобіана
-        def det_jacobian(ksi, eta):
-            J11 = sum((1 - eta if i % 2 == 0 else 1 + eta) * x_coords[i] / 4 for i in range(4))
-            J12 = sum((1 - ksi if i < 2 else 1 + ksi) * x_coords[i] / 4 for i in range(4))
-            J21 = sum((1 - eta if i % 2 == 0 else 1 + eta) * y_coords[i] / 4 for i in range(4))
-            J22 = sum((1 - ksi if i < 2 else 1 + ksi) * y_coords[i] / 4 for i in range(4))
-            return abs(J11 * J22 - J12 * J21)
-        # def det_jacobian(ksi, eta, x_coords, y_coords):
-        #     """Обчислення детермінанта Якобіана."""
-        #     # Похідні базисних функцій
-        #     dN_dksi = [sp.diff(N(i, sp.Symbol('ksi'), sp.Symbol('eta')), 'ksi') for i in range(4)]
-        #     dN_deta = [sp.diff(N(i, sp.Symbol('ksi'), sp.Symbol('eta')), 'eta') for i in range(4)]
-        #
-        #     # Елементи Якобіана
-        #     J11 = sum(dN_dksi[i].subs({'ksi': ksi, 'eta': eta}) * x_coords[i] for i in range(4))
-        #     J12 = sum(dN_deta[i].subs({'ksi': ksi, 'eta': eta}) * x_coords[i] for i in range(4))
-        #     J21 = sum(dN_dksi[i].subs({'ksi': ksi, 'eta': eta}) * y_coords[i] for i in range(4))
-        #     J22 = sum(dN_deta[i].subs({'ksi': ksi, 'eta': eta}) * y_coords[i] for i in range(4))
-        #
-        #     # Детермінант Якобіана
-        #     return abs(J11 * J22 - J12 * J21)
+        def equations(p):
+            ksi, eta = p
+            x_mapped = sum(b2f.N(i, ksi, eta, ap) * x_coords[i] for i in range(num_nodes))
+            y_mapped = sum(b2f.N(i, ksi, eta, ap) * y_coords[i] for i in range(num_nodes))
+            return [x_mapped - x, y_mapped - y]
 
-        # Інтегральна функція для вузла i
-        def integrand(ksi, eta, i):
-            x = x_expr(ksi, eta)
-            y = y_expr(ksi, eta)
-            return N(i, ksi, eta) * f(x, y) * det_jacobian(ksi, eta)
-        # def integrand(ksi, eta, i, x_coords, y_coords):
-        #     """Інтегральна функція для вузла i."""
-        #     x = sum(N(j, ksi, eta) * x_coords[j] for j in range(4))
-        #     y = sum(N(j, ksi, eta) * y_coords[j] for j in range(4))
-        #     det_J = det_jacobian(ksi, eta, x_coords, y_coords)
-        #     return N(i, ksi, eta) * f(x, y) * det_J
+        sol = root(equations, [0, 0])
 
-        # Обчислення локальних інтегралів для кожного вузла елемента
-        for i in range(4):
-            integral, _ = dblquad(
-                lambda eta, ksi: integrand(ksi, eta, i),
-                -1, 1,  # Межі для ksi
-                lambda ksi: -1, lambda ksi: 1  # Межі для eta
-            )
-            b[nodes[i]] += integral
+        if sol.success:
+            ksi, eta = sol.x
+            if -1 <= ksi <= 1 and -1 <= eta <= 1:
+                u_local = [u[i] for i in element]
+                u_val = sum(u_local[i] * b2f.N(i, ksi, eta, ap) for i in range(num_nodes))
+                return u_val
 
-    return b
+    return 0  # якщо точка не належить жодному елементу
 
 
 
 
 def plot_2d_solution(u, NL, EL, exact_solution=None):
     """
-    Побудова графіка наближеного розв'язку в 2D-просторі.
+    Побудова графіка наближеного розв'язку в 2D-просторі із прямокутною сіткою.
 
     u - знайдений вектор розв'язку (значення на вузлах).
     NL - координати вузлів (матриця розмірності [NoN x 2]).
@@ -179,79 +78,194 @@ def plot_2d_solution(u, NL, EL, exact_solution=None):
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection='3d')
 
-    # Нанесення вузлів
-    x = NL[:, 0]  # x-координати вузлів
-    y = NL[:, 1]  # y-координати вузлів
-    z = u  # Значення наближеного розв'язку в вузлах
+    # Координати вузлів
+    x = NL[:, 0]
+    y = NL[:, 1]
+    z = u
 
-    # Побудова триангуляції (за елементами EL)
-    ax.plot_trisurf(x, y, z, cmap='viridis', alpha=0.8, edgecolor='gray', label='Наближений розв\'язок')
+    # Створення регулярної прямокутної сітки
+    x_lin = np.linspace(np.min(x), np.max(x), 100)
+    y_lin = np.linspace(np.min(y), np.max(y), 100)
+    X, Y = np.meshgrid(x_lin, y_lin)
+
+    # Інтерполяція значень u для регулярної сітки
+    Z = griddata((x, y), z, (X, Y), method='linear')
+
+    # Побудова поверхні
+    surface = ax.plot_surface(X, Y, Z, cmap='viridis', alpha=0.8, edgecolor='none', label='Наближений розв\'язок')
 
     # Якщо заданий точний розв'язок
     if exact_solution:
-        x_exact = np.linspace(np.min(x), np.max(x), 50)
-        y_exact = np.linspace(np.min(y), np.max(y), 50)
-        X, Y = np.meshgrid(x_exact, y_exact)
-        Z = exact_solution(X, Y)
-        ax.plot_surface(X, Y, Z, cmap='plasma', alpha=0.4, label='Точний розв\'язок')
+        Z_exact = exact_solution(X, Y)
+        ax.plot_surface(X, Y, Z_exact, cmap='plasma', alpha=0.4, label='Точний розв\'язок')
 
     # Налаштування графіка
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_zlabel('u(x, y)')
     ax.set_title('Наближений розв\'язок у 2D-просторі')
-    plt.legend()
-    plt.show()
-
-def main():
-    d1 = 1  # Довжина по x
-    d2 = 1  # Довжина по y
-    p = 2   # Поділ по x
-    m = 2   # Поділ по y
-    element_type = 'D2QU4N'  # Тип елементу ('D2QU4N' або 'D2TR3N')
-
-    NL, EL = uniform_mesh(d1, d2, p, m, element_type)
-
-
-    b = calculate_b(NL, EL, p, m)
-    print("Вектор правої частини:", b)
-
-    NoN = NL.shape[0]  # Кількість вузлів
-    NoE = EL.shape[0]  # Кількість елементів
-
-
-    # Візуалізація
-    plot_2d_solution(u, NL, EL, f)
-
-    plt.figure(figsize=(8, 8))
-
-    # Анотація вузлів
-    for i in range(NoN):
-        plt.scatter(NL[i, 0], NL[i, 1], color='black')  # Вузли
-        plt.text(NL[i, 0], NL[i, 1], str(i + 1), color='red', fontsize=8)
-
-    # Побудова елементів
-    for j in range(NoE):
-        nodes = EL[j]
-        x = NL[nodes, 0]
-        y = NL[nodes, 1]
-        x = np.append(x, x[0])  # Замкнути контур
-        y = np.append(y, y[0])
-        plt.plot(x, y, color='blue')
-        # Анотація елемента
-        cx = np.mean(x[:-1])
-        cy = np.mean(y[:-1])
-        plt.text(cx, cy, str(j + 1), color='green', fontsize=10)
-
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.title(f'Сітка: {element_type}')
-    plt.grid()
-    plt.axis('equal')
+    plt.colorbar(surface, ax=ax, shrink=0.5, aspect=10)
     plt.show()
 
 
 
 
-if __name__ == "__main__":
-    main()
+
+
+
+def calculate_L2_error(u_exact, u_values, nodes, elements, base, degree):
+    from numpy.polynomial.legendre import leggauss
+    dN_dksi_list, dN_deta_list = f2e.compute_partial_derivatives(degree)
+    nq = degree + 1  # кількість точок для квадратури
+    quad_points, quad_weights = leggauss(nq)  # квадратура на відрізку [-1, 1]
+
+    error_squared = 0
+
+    for element in elements:
+        # координати вузлів елемента
+        element_coords = [nodes[i] for i in element]
+        # значення u_h у вузлах цього елемента
+        u_local = [u_values[i] for i in element]
+
+        # проходимо по всім точкам квадратури (ξ, η)
+        for i in range(nq):
+            for j in range(nq):
+                ξ = quad_points[i]
+                η = quad_points[j]
+                w = quad_weights[i] * quad_weights[j]
+
+                # обчислюємо x, y через базис і координати вузлів
+                x = sum(base[k](ξ, η) * element_coords[k][0] for k in range(len(element)))
+                y = sum(base[k](ξ, η) * element_coords[k][1] for k in range(len(element)))
+
+                u_h_val = sum(u_local[k] * base[k](ξ, η) for k in range(len(element)))
+                u_ex_val = u_exact(x, y)
+
+                J_val = m2d.compute_jacobian(ξ, η, [coord[0] for coord in element_coords],[coord[1] for coord in element_coords], dN_dksi_list, dN_deta_list)
+                error_squared += (u_ex_val - u_h_val) ** 2 * w * J_val
+    return np.sqrt(error_squared)
+
+
+def plot_2d_solution2(u, NL, EL, exact_solution=None):
+    """
+    Побудова графіка наближеного розв'язку в 2D-просторі із прямокутною сіткою
+    та накладенням точного розв'язку (якщо задано), а також виводом L2 і max похибки.
+    """
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Координати вузлів
+    x = NL[:, 0]
+    y = NL[:, 1]
+    z = u
+
+    # Створення регулярної сітки для інтерполяції
+    x_lin = np.linspace(np.min(x), np.max(x), 100)
+    y_lin = np.linspace(np.min(y), np.max(y), 100)
+    X, Y = np.meshgrid(x_lin, y_lin)
+    Z = griddata((x, y), z, (X, Y), method='linear')
+
+    # Побудова наближеного розв’язку
+    surface = ax.plot_surface(X, Y, Z, cmap='viridis', alpha=0.8, edgecolor='none', label='Наближений розв\'язок')
+
+    # Якщо заданий точний розв’язок
+    if exact_solution:
+        Z_exact = exact_solution(X, Y)
+        Z_computed = griddata((x, y), z, (X, Y), method='linear')
+
+        ax.plot_surface(X, Y, Z_exact, cmap='plasma', alpha=0.4, edgecolor='none')
+
+        # Обчислення похибок
+        # Маскування nan
+        mask = ~np.isnan(Z_computed) & ~np.isnan(Z_exact)
+        Zc = Z_computed[mask]
+        Ze = Z_exact[mask]
+
+        # Обчислення похибок без nan
+        l2_error = np.sqrt(np.mean((Zc - Ze) ** 2))
+        max_error = np.max(np.abs(Zc - Ze))
+
+        # Вивід текстом збоку графіка
+        ax.text2D(0.02, 0.95, f"L2 похибка: {l2_error:.2e}", transform=ax.transAxes, fontsize=12)
+        ax.text2D(0.02, 0.91, f"Max похибка: {max_error:.2e}", transform=ax.transAxes, fontsize=12)
+        ax.text2D(0.02, 0.87, "Фіолетовий – точний,\nЗелений – FEM", transform=ax.transAxes, fontsize=10)
+        print(f"L2 похибка: {l2_error:.2e}")
+        print(f"Max похибка: {max_error:.2e}")
+    # Налаштування осей
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('u(x, y)')
+    ax.set_title('Наближене vs Точне розв\'язання')
+
+    # Додати кольорову шкалу
+    plt.colorbar(surface, ax=ax, shrink=0.5, aspect=10)
+    plt.show()
+def plot_2d_solution_exact(exact_solution, NL):
+        """
+        Побудова графіка точного розв'язку в 2D-просторі.
+        """
+        fig = plt.figure(figsize=(10, 8))
+        ax = fig.add_subplot(111, projection='3d')
+
+        # Координати вузлів
+        x = NL[:, 0]
+        y = NL[:, 1]
+
+        # Створення регулярної сітки для інтерполяції
+        x_lin = np.linspace(np.min(x), np.max(x), 100)
+        y_lin = np.linspace(np.min(y), np.max(y), 100)
+        X, Y = np.meshgrid(x_lin, y_lin)
+        Z_exact = exact_solution(X, Y)
+
+        # Побудова точного розв’язку
+        ax.plot_surface(X, Y, Z_exact, cmap='plasma', alpha=0.8, edgecolor='none', label='Точний розв\'язок')
+
+        # Налаштування осей
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('u(x, y)')
+        ax.set_title('Точний розв\'язок')
+
+        # Додати кольорову шкалу
+        plt.colorbar(ax.plot_surface(X, Y, Z_exact, cmap='plasma', alpha=0.8, edgecolor='none'))
+        plt.show()
+
+
+def plot_2d_solution_difference(u, NL, exact_solution=None):
+    """
+    Побудова графіка різниці між точним і наближеним розв'язком.
+    """
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Координати вузлів
+    x = NL[:, 0]
+    y = NL[:, 1]
+
+    # Створення регулярної сітки для інтерполяції
+    x_lin = np.linspace(np.min(x), np.max(x), 100)
+    y_lin = np.linspace(np.min(y), np.max(y), 100)
+    X, Y = np.meshgrid(x_lin, y_lin)
+
+    # Інтерполюємо точний розв'язок на цю сітку
+    Z_exact = exact_solution(X, Y)
+
+    # Інтерполюємо наближений розв'язок на ту ж саму сітку
+    Z_approx = griddata((x, y), u, (X, Y), method='linear')
+
+    # Обчислення різниці між точним і наближеним розв'язком
+    difference = Z_approx - Z_exact
+
+    # Побудова різниці
+    surface = ax.plot_surface(X, Y, difference, cmap='coolwarm', alpha=0.8, edgecolor='none',
+                              label='Різниця між точним і наближеним')
+
+    # Налаштування осей
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('Різниця')
+    ax.set_title('Різниця між точним і наближеним розв\'язком')
+
+    # Додати кольорову шкалу
+    plt.colorbar(surface, ax=ax, shrink=0.5, aspect=10)
+    plt.show()

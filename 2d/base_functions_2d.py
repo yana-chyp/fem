@@ -1,47 +1,65 @@
-import sympy as sp
 
 
-ksi_left = -1
-ksi_right = 1
-eta_left = -1
-eta_right = 1
 
-# def convert_xy_to_ksieta(i, elements, nodes, x, y):
-    # ksi =
-    # eta =
-    # return (ksi, eta)
+def N(i, ksi, eta, ap):
+    if ap == 1:
+        functions = [
+            (1 - ksi) * (1 - eta) / 4,
+            (1 + ksi) * (1 - eta) / 4,
+            (1 + ksi) * (1 + eta) / 4,
+            (1 - ksi) * (1 + eta) / 4
+        ]
+    elif ap == 2:
+        functions = [
+            (1 / 4) * (1 - ksi) * (1 - eta) * ksi * eta,
+            (1 / 4) * (ksi + 1) * (1 - eta) * ksi * ( - eta),
+            (1 / 4) * (ksi + 1) * (eta + 1) * ksi * eta,
+            (1 / 4) * (1 - ksi) * (eta + 1) * ( - ksi) * eta,
+            (1 / 2) * (1 - ksi ** 2) * ( - eta ) * (1 - eta),
+            (1 / 2) * (1 - eta ** 2) * ksi * (ksi + 1),
+            (1 / 2) * (1 - ksi ** 2) * eta * (eta + 1),
+            (1 / 2) * (1 - eta ** 2) * ( - ksi ) * (1 - ksi),
+            (1 - ksi ** 2) * (1 - eta ** 2)
+        ]
+    elif ap == 3:
+        functions = [
+            # (81 / 256) * (1 - ksi) * (1 - eta) * ((1 / 9) - ksi ** 2) * ((1 / 9) - eta ** 2),
+            # (81 / 256) * (1 + ksi) * (1 - eta) * ((1 / 9) - ksi ** 2) * ((1 / 9) - eta ** 2),
+            # (81 / 256) * (1 + ksi) * (1 + eta) * ((1 / 9) - ksi ** 2) * ((1 / 9) - eta ** 2),
+            # (81 / 256) * (1 - ksi) * (1 + eta) * ((1 / 9) - ksi ** 2) * ((1 / 9) - eta ** 2),
+            #
+            # (243 / 256) * (1 - ksi ** 2) * (eta ** 2 - (1 / 9)) * ((1 / 3) - ksi) * (1 - eta),
+            # (243 / 256) * (1 - eta ** 2) * (ksi ** 2 - (1 / 9)) * ((1 / 3) - eta) * (1 + ksi),
+            # (243 / 256) * (1 - ksi ** 2) * (eta ** 2 - (1 / 9)) * ((1 / 3) + ksi) * (1 + eta),
+            # (243 / 256) * (1 - eta ** 2) * (ksi ** 2 - (1 / 9)) * ((1 / 3) + eta) * (1 - ksi),
+            # (243 / 256) * (1 - ksi ** 2) * (eta ** 2 - (1 / 9)) * ((1 / 3) + ksi) * (1 - eta),
+            # (243 / 256) * (1 - eta ** 2) * (ksi ** 2 - (1 / 9)) * ((1 / 3) + eta) * (1 + ksi),
+            # (243 / 256) * (1 - ksi ** 2) * (eta ** 2 - (1 / 9)) * ((1 / 3) - ksi) * (1 + eta),
+            # (243 / 256) * (1 - eta ** 2) * (ksi ** 2 - (1 / 9)) * ((1 / 3) - eta) * (1 - ksi),
+            #
+            # (81 / 256) * (1 - ksi ** 2) * (1 - 3 * ksi) * (1 - eta ** 2) * (1 - 3 * eta),
+            # (81 / 256) * (1 - ksi ** 2) * (1 + 3 * ksi) * (1 - eta ** 2) * (1 - 3 * eta),
+            # (81 / 256) * (1 - ksi ** 2) * (1 + 3 * ksi) * (1 - eta ** 2) * (1 + 3 * eta),
+            # (81 / 256) * (1 - ksi ** 2) * (1 - 3 * ksi) * (1 - eta ** 2) * (1 + 3 * eta)
 
-def convert_ksieta_to_t(ksi_0 = -1, ksi_1 = 1, eta_0 = -1, eta_1 = 1):
-    t_0 = 0; t_1 = 1
-    s = ((ksi_1-ksi_0)**2 + (eta_1-eta_0)**2)**(1/2)
-    t = sp.symbols('t')
-    # ksi = sp.symbols('ksi')
-    # eta = sp.symbols('eta')
-    return t_0, t_1, s, t*(ksi_1-ksi_0)+ksi_0, t*(eta_1-eta_0)+eta_0
+            (81 / 256) * (1 - ksi) * (1 - eta) * ((1 / 9) - ksi ** 2) * ((1 / 9) - eta ** 2),
+            (81 / 256) * (1 + ksi) * (1 - eta) * ((1 / 9) - ksi ** 2) * ((1 / 9) - eta ** 2),
+            (81 / 256) * (1 + ksi) * (1 + eta) * ((1 / 9) - ksi ** 2) * ((1 / 9) - eta ** 2),
+            (81 / 256) * (1 - ksi) * (1 + eta) * ((1 / 9) - ksi ** 2) * ((1 / 9) - eta ** 2),
 
-def substitute_t_to_base_func(base_func, ksi_through_t, eta_through_t):
-    return base_func.subs('ksi', ksi_through_t).subs('eta', eta_through_t)
+            (243 / 256) * (1 - ksi ** 2) * (eta ** 2 - (1 / 9)) * (1 / 3 - 3 * ksi) * (1 - eta),
+            (243 / 256) * (1 - eta ** 2) * (ksi ** 2 - (1 / 9)) * (1 / 3 - 3 * eta) * (1 + ksi),
+            (243 / 256) * (1 - ksi ** 2) * (eta ** 2 - (1 / 9)) * (1 / 3 + 3 * ksi) * (1 + eta),
+            (243 / 256) * (1 - eta ** 2) * (ksi ** 2 - (1 / 9)) * (1 / 3 + 3 * eta) * (1 - ksi),
+            (243 / 256) * (1 - ksi ** 2) * (eta ** 2 - (1 / 9)) * (1 / 3 + 3 * ksi) * (1 - eta),
+            (243 / 256) * (1 - eta ** 2) * (ksi ** 2 - (1 / 9)) * (1 / 3 + 3 * eta) * (1 + ksi),
+            (243 / 256) * (1 - ksi ** 2) * (eta ** 2 - (1 / 9)) * (1 / 3 - 3 * ksi) * (1 + eta),
+            (243 / 256) * (1 - eta ** 2) * (ksi ** 2 - (1 / 9)) * (1 / 3 - 3 * eta) * (1 - ksi),
 
-def get_base_functions(m = 1):
-    n = (m+1)*(m+1)     #number of nodes
-    base_functions = [0 for k in range(n)]
-    ksi = sp.symbols('ksi')
-    eta = sp.symbols('eta')
+            (729 / 256) * (1 - ksi ** 2) * (1 - eta ** 2) * (1 / 3 - 3 * ksi) * (1 / 3 - 3 * eta),
+            (729 / 256) * (1 - ksi ** 2) * (1 - eta ** 2) * (1 / 3 + 3 * ksi) * (1 / 3 - 3 * eta),
+            (729 / 256) * (1 - ksi ** 2) * (1 - eta ** 2) * (1 / 3 + 3 * ksi) * (1 / 3 + 3 * eta),
+            (729 / 256) * (1 - ksi ** 2) * (1 - eta ** 2) * (1 / 3 - 3 * ksi) * (1 / 3 + 3 * eta)
 
-    h_ksi = (ksi_right - ksi_left)/m
-    h_eta = (eta_right - eta_left)/m
-
-    submesh = [[ksi_left + k*h_ksi, eta_left + l*h_eta] for l in range(m+1) for k in range(m+1)]
-    # print(submesh)
-    for i in range(n):
-        expression = 1
-        for k in range(m+1):
-            if submesh[k][0] != submesh[i][0]:
-                expression *= ( (ksi - submesh[k][0])/(submesh[i][0]-submesh[k][0]) )
-        for l in range(m+1):
-            if  submesh[l*(m+1)][1] != submesh[i][1]:
-                expression *= ( (eta - submesh[l*(m+1)][1])/(submesh[i][1]-submesh[l*(m+1)][1]) )
-
-
-        base_functions[i] = sp.simplify(expression)
-    return base_functions
+        ]
+    return functions[i]
