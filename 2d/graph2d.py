@@ -7,9 +7,6 @@ from scipy.interpolate import griddata
 
 
 def plot_statistics(start, end, statistics, u_exact, n_points=100):
-    """
-    Малює u вздовж відрізка від точки start до end.
-    """
     abscissas = np.linspace(0, 1, n_points)
     xs = [(1 - t) * start[0] + t * end[0] for t in abscissas]
     ys = [(1 - t) * start[1] + t * end[1] for t in abscissas]
@@ -64,17 +61,7 @@ def interpolate_solution(x, y, u, NL, EL, ap):
     return 0  # якщо точка не належить жодному елементу
 
 
-
-
 def plot_2d_solution(u, NL, EL, exact_solution=None):
-    """
-    Побудова графіка наближеного розв'язку в 2D-просторі із прямокутною сіткою.
-
-    u - знайдений вектор розв'язку (значення на вузлах).
-    NL - координати вузлів (матриця розмірності [NoN x 2]).
-    EL - елементи сітки (матриця розмірності [NoE x NPE]).
-    exact_solution - функція для точного розв'язку (опціонально).
-    """
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection='3d')
 
@@ -108,90 +95,69 @@ def plot_2d_solution(u, NL, EL, exact_solution=None):
     plt.show()
 
 
-
-
-
-
-
 def calculate_L2_error(u_exact, u_values, nodes, elements, base, degree):
     from numpy.polynomial.legendre import leggauss
     dN_dksi_list, dN_deta_list = f2e.compute_partial_derivatives(degree)
-    nq = degree + 1  # кількість точок для квадратури
-    quad_points, quad_weights = leggauss(nq)  # квадратура на відрізку [-1, 1]
+    nq = degree + 1
+    quad_points, quad_weights = leggauss(nq)
 
     error_squared = 0
 
     for element in elements:
-        # координати вузлів елемента
         element_coords = [nodes[i] for i in element]
-        # значення u_h у вузлах цього елемента
         u_local = [u_values[i] for i in element]
 
-        # проходимо по всім точкам квадратури (ξ, η)
         for i in range(nq):
             for j in range(nq):
                 ξ = quad_points[i]
                 η = quad_points[j]
                 w = quad_weights[i] * quad_weights[j]
 
-                # обчислюємо x, y через базис і координати вузлів
                 x = sum(base[k](ξ, η) * element_coords[k][0] for k in range(len(element)))
                 y = sum(base[k](ξ, η) * element_coords[k][1] for k in range(len(element)))
 
                 u_h_val = sum(u_local[k] * base[k](ξ, η) for k in range(len(element)))
                 u_ex_val = u_exact(x, y)
 
-                J_val = m2d.compute_jacobian(ξ, η, [coord[0] for coord in element_coords],[coord[1] for coord in element_coords], dN_dksi_list, dN_deta_list)
+                J_val = m2d.compute_jacobian(ξ, η, [coord[0] for coord in element_coords],
+                                             [coord[1] for coord in element_coords], dN_dksi_list, dN_deta_list)
                 error_squared += (u_ex_val - u_h_val) ** 2 * w * J_val
     return np.sqrt(error_squared)
 
 
 def plot_2d_solution2(u, NL, EL, exact_solution=None):
-    """
-    Побудова графіка наближеного розв'язку в 2D-просторі із прямокутною сіткою
-    та накладенням точного розв'язку (якщо задано), а також виводом L2 і max похибки.
-    """
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection='3d')
 
-    # Координати вузлів
     x = NL[:, 0]
     y = NL[:, 1]
     z = u
 
-    # Створення регулярної сітки для інтерполяції
     x_lin = np.linspace(np.min(x), np.max(x), 100)
     y_lin = np.linspace(np.min(y), np.max(y), 100)
     X, Y = np.meshgrid(x_lin, y_lin)
     Z = griddata((x, y), z, (X, Y), method='linear')
 
-    # Побудова наближеного розв’язку
     surface = ax.plot_surface(X, Y, Z, cmap='viridis', alpha=0.8, edgecolor='none', label='Наближений розв\'язок')
 
-    # Якщо заданий точний розв’язок
     if exact_solution:
         Z_exact = exact_solution(X, Y)
         Z_computed = griddata((x, y), z, (X, Y), method='linear')
 
         ax.plot_surface(X, Y, Z_exact, cmap='plasma', alpha=0.4, edgecolor='none')
 
-        # Обчислення похибок
-        # Маскування nan
         mask = ~np.isnan(Z_computed) & ~np.isnan(Z_exact)
         Zc = Z_computed[mask]
         Ze = Z_exact[mask]
 
-        # Обчислення похибок без nan
         l2_error = np.sqrt(np.mean((Zc - Ze) ** 2))
         max_error = np.max(np.abs(Zc - Ze))
 
-        # Вивід текстом збоку графіка
         ax.text2D(0.02, 0.95, f"L2 похибка: {l2_error:.2e}", transform=ax.transAxes, fontsize=12)
         ax.text2D(0.02, 0.91, f"Max похибка: {max_error:.2e}", transform=ax.transAxes, fontsize=12)
         ax.text2D(0.02, 0.87, "Фіолетовий – точний,\nЗелений – FEM", transform=ax.transAxes, fontsize=10)
         print(f"L2 похибка: {l2_error:.2e}")
         print(f"Max похибка: {max_error:.2e}")
-    # Налаштування осей
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_zlabel('u(x, y)')
@@ -200,72 +166,55 @@ def plot_2d_solution2(u, NL, EL, exact_solution=None):
     # Додати кольорову шкалу
     plt.colorbar(surface, ax=ax, shrink=0.5, aspect=10)
     plt.show()
+
+
 def plot_2d_solution_exact(exact_solution, NL):
-        """
-        Побудова графіка точного розв'язку в 2D-просторі.
-        """
-        fig = plt.figure(figsize=(10, 8))
-        ax = fig.add_subplot(111, projection='3d')
-
-        # Координати вузлів
-        x = NL[:, 0]
-        y = NL[:, 1]
-
-        # Створення регулярної сітки для інтерполяції
-        x_lin = np.linspace(np.min(x), np.max(x), 100)
-        y_lin = np.linspace(np.min(y), np.max(y), 100)
-        X, Y = np.meshgrid(x_lin, y_lin)
-        Z_exact = exact_solution(X, Y)
-
-        # Побудова точного розв’язку
-        ax.plot_surface(X, Y, Z_exact, cmap='plasma', alpha=0.8, edgecolor='none', label='Точний розв\'язок')
-
-        # Налаштування осей
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.set_zlabel('u(x, y)')
-        ax.set_title('Точний розв\'язок')
-
-        # Додати кольорову шкалу
-        plt.colorbar(ax.plot_surface(X, Y, Z_exact, cmap='plasma', alpha=0.8, edgecolor='none'))
-        plt.show()
-
-
-def plot_2d_solution_difference(u, NL, exact_solution=None):
-    """
-    Побудова графіка різниці між точним і наближеним розв'язком.
-    """
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection='3d')
 
-    # Координати вузлів
     x = NL[:, 0]
     y = NL[:, 1]
 
-    # Створення регулярної сітки для інтерполяції
+    x_lin = np.linspace(np.min(x), np.max(x), 100)
+    y_lin = np.linspace(np.min(y), np.max(y), 100)
+    X, Y = np.meshgrid(x_lin, y_lin)
+    Z_exact = exact_solution(X, Y)
+
+    ax.plot_surface(X, Y, Z_exact, cmap='plasma', alpha=0.8, edgecolor='none', label='Точний розв\'язок')
+
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('u(x, y)')
+    ax.set_title('Точний розв\'язок')
+
+    plt.colorbar(ax.plot_surface(X, Y, Z_exact, cmap='plasma', alpha=0.8, edgecolor='none'))
+    plt.show()
+
+
+def plot_2d_solution_difference(u, NL, exact_solution=None):
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+
+    x = NL[:, 0]
+    y = NL[:, 1]
+
     x_lin = np.linspace(np.min(x), np.max(x), 100)
     y_lin = np.linspace(np.min(y), np.max(y), 100)
     X, Y = np.meshgrid(x_lin, y_lin)
 
-    # Інтерполюємо точний розв'язок на цю сітку
     Z_exact = exact_solution(X, Y)
 
-    # Інтерполюємо наближений розв'язок на ту ж саму сітку
     Z_approx = griddata((x, y), u, (X, Y), method='linear')
 
-    # Обчислення різниці між точним і наближеним розв'язком
     difference = Z_approx - Z_exact
 
-    # Побудова різниці
     surface = ax.plot_surface(X, Y, difference, cmap='coolwarm', alpha=0.8, edgecolor='none',
                               label='Різниця між точним і наближеним')
 
-    # Налаштування осей
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_zlabel('Різниця')
     ax.set_title('Різниця між точним і наближеним розв\'язком')
 
-    # Додати кольорову шкалу
     plt.colorbar(surface, ax=ax, shrink=0.5, aspect=10)
     plt.show()

@@ -4,29 +4,7 @@ from enum import Enum
 import base_functions_2d as b2f
 
 
-def compute_partial_derivatives(ap):
-    ksi, eta = sp.symbols('ksi eta')
-
-    num_nodes = 4 if ap == 1 else (9 if ap == 2 else 16)
-    dN_dksi_funcs = []
-    dN_deta_funcs = []
-
-    for i in range(num_nodes):
-        Ni = b2f.N(i, ksi, eta, ap)
-        dN_dksi = sp.diff(Ni, ksi)
-        dN_deta = sp.diff(Ni, eta)
-
-        # Використовуємо lambdify замість подальших підстановок у циклі
-        dN_dksi_func = sp.lambdify((ksi, eta), dN_dksi, modules="numpy")
-        dN_deta_func = sp.lambdify((ksi, eta), dN_deta, modules="numpy")
-
-        dN_dksi_funcs.append(dN_dksi_func)
-        dN_deta_funcs.append(dN_deta_func)
-
-    return dN_dksi_funcs, dN_deta_funcs
-
-
-def apply_boundary_conditions(matrix, f_load, p, m, nodes, ug, ap = 1):
+def apply_boundary_conditions(matrix, f_load, p, m, nodes, ug, ap=1):
     validate_boundary_conditions(ug)
     bounds = get_boundary_elements_and_nodes(p, m, ug, ap)
     n = len(ug)
@@ -39,42 +17,42 @@ def apply_boundary_conditions(matrix, f_load, p, m, nodes, ug, ap = 1):
     return (matrix, f_load)
 
 
-def get_boundary_elements_and_nodes(p, m, ug, degree = 1):
+def get_boundary_elements_and_nodes(p, m, ug, degree=1):
     bounds = []
-    #gamma_i consists of [elements], [nodes]
+    # gamma_i consists of [elements], [nodes]
     elements_1 = [j for j in range(p)]
-    nodes_1 = [j for j in range(1, degree*p)]
+    nodes_1 = [j for j in range(1, degree * p)]
 
-    elements_2 = [p*(i+1)-1 for i in range(m)]
-    nodes_2 = [(i+1)*(degree*p+1)-1 for i in range(1, degree*m)]
+    elements_2 = [p * (i + 1) - 1 for i in range(m)]
+    nodes_2 = [(i + 1) * (degree * p + 1) - 1 for i in range(1, degree * m)]
 
-    intersection = degree*p
+    intersection = degree * p
     # print(intersection)
-    if (ug[0][0]==TypeOfBoundCond.DIRICHLET):
+    if (ug[0][0] == TypeOfBoundCond.DIRICHLET):
         nodes_1.append(intersection)
         # print('1', nodes_1)
     else:
         nodes_2.insert(0, intersection)
         # print('2', nodes_2)
 
-    elements_3 = [p*m-1-j for j in range(p)]
-    nodes_3 = [(degree*p+1)*degree*m + j for j in reversed(range(1, degree*p))]
+    elements_3 = [p * m - 1 - j for j in range(p)]
+    nodes_3 = [(degree * p + 1) * degree * m + j for j in reversed(range(1, degree * p))]
 
-    intersection = (degree*p+1)*(degree*m+1)-1
+    intersection = (degree * p + 1) * (degree * m + 1) - 1
     # print(intersection)
-    if (ug[1][0]==TypeOfBoundCond.DIRICHLET):
+    if (ug[1][0] == TypeOfBoundCond.DIRICHLET):
         nodes_2.append(intersection)
         # print('2', nodes_2)
     else:
         nodes_3.insert(0, intersection)
         # print('3', nodes_3)
 
-    elements_4 = [p*i for i in reversed(range(m))]
-    nodes_4 = [i*(degree*p+1) for i in reversed(range(1, degree*m))]
+    elements_4 = [p * i for i in reversed(range(m))]
+    nodes_4 = [i * (degree * p + 1) for i in reversed(range(1, degree * m))]
 
-    intersection = degree*m*(degree*p+1)
+    intersection = degree * m * (degree * p + 1)
     # print(intersection)
-    if (ug[2][0]==TypeOfBoundCond.DIRICHLET):
+    if (ug[2][0] == TypeOfBoundCond.DIRICHLET):
         nodes_3.append(intersection)
         # print('3', nodes_3)
     else:
@@ -83,7 +61,7 @@ def get_boundary_elements_and_nodes(p, m, ug, degree = 1):
 
     intersection = 0
     # print(intersection)
-    if (ug[3][0]==TypeOfBoundCond.DIRICHLET):
+    if (ug[3][0] == TypeOfBoundCond.DIRICHLET):
         nodes_4.append(intersection)
         # print('4', nodes_4)
     else:
@@ -115,22 +93,26 @@ def validate_boundary_conditions(ug):
     if not isPresentDirichlet:
         raise Exception("Wrong boundary conditions: all are Neumann, Dirichlet must be present")
 
-def get_boundary_points(p, m, ap = 1):
+
+def get_boundary_points(p, m, ap=1):
     bounds = []
-    gamma_1 = []; gamma_2 = []; gamma_3 = []; gamma_4 = []
-    for j in range(ap*p+1):
+    gamma_1 = [];
+    gamma_2 = [];
+    gamma_3 = [];
+    gamma_4 = []
+    for j in range(ap * p + 1):
         gamma_1.append(j)
     bounds.append(gamma_1)
-    for i in range(1, ap*m+1):
-        index = (i+1)*(ap*p+1)-1
+    for i in range(1, ap * m + 1):
+        index = (i + 1) * (ap * p + 1) - 1
         gamma_2.append(index)
     bounds.append(gamma_2)
-    for j in reversed(range(ap*p)):
-        index = (ap*p+1)*ap*m + j
+    for j in reversed(range(ap * p)):
+        index = (ap * p + 1) * ap * m + j
         gamma_3.append(index)
     bounds.append(gamma_3)
-    for i in reversed(range(1, ap*m)):
-        index = i*(ap*p+1)
+    for i in reversed(range(1, ap * m)):
+        index = i * (ap * p + 1)
         gamma_4.append(index)
     bounds.append(gamma_4)
     return bounds

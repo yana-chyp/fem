@@ -73,39 +73,40 @@ def uniform_mesh_with_vertices(vertices, p, m, element_type, degree=1):
                 EL[e, :] = [n1, n2, n4, n3]
             elif degree == 2:
                 # 9 вузлів на елемент
-                n1 = base #1
-                n2 = n1 + 2 #2
-                n3 = n1 + 2 * nodes_x #4
-                n4 = n3 + 2 #3
-                n5 = n1 + 1 #5
-                n6 = n3 + 1 #7
-                n7 = n1 + nodes_x #8
-                n8 = n7 + 2 #6
-                n9 = n7 + 1 #9
+                n1 = base  # 1
+                n2 = n1 + 2  # 2
+                n3 = n1 + 2 * nodes_x  # 4
+                n4 = n3 + 2  # 3
+                n5 = n1 + 1  # 5
+                n6 = n3 + 1  # 7
+                n7 = n1 + nodes_x  # 8
+                n8 = n7 + 2  # 6
+                n9 = n7 + 1  # 9
                 EL[e, :] = [n1, n2, n4, n3, n5, n8, n6, n7, n9]
             elif degree == 3:
                 # 16 вузлів на елемент
-                n1 = base #1
-                n2 = n1 + 3  #2
-                n3 = n1 + 3 * nodes_x #4
-                n4 = n3 + 3 #3
-                n5 = n1 + 1 #5
-                n6 = n1 + 2 #9
-                n7 = n3 + 1 #11
-                n8 = n3 + 2 #7
-                n9 = n1 + nodes_x #12
-                n10 = n9 + 1 #13
-                n11 = n9 + 2 #14
-                n12 = n9 + 3 #6
-                n13 = n1 + 2 * nodes_x #8
-                n14 = n13 + 1 #16
-                n15 = n13 + 2 #15
-                n16 = n13 + 3 #10
+                n1 = base  # 1
+                n2 = n1 + 3  # 2
+                n3 = n1 + 3 * nodes_x  # 4
+                n4 = n3 + 3  # 3
+                n5 = n1 + 1  # 5
+                n6 = n1 + 2  # 9
+                n7 = n3 + 1  # 11
+                n8 = n3 + 2  # 7
+                n9 = n1 + nodes_x  # 12
+                n10 = n9 + 1  # 13
+                n11 = n9 + 2  # 14
+                n12 = n9 + 3  # 6
+                n13 = n1 + 2 * nodes_x  # 8
+                n14 = n13 + 1  # 16
+                n15 = n13 + 2  # 15
+                n16 = n13 + 3  # 10
                 EL[e, :] = [n1, n2, n4, n3, n5, n12, n8, n13, n6, n16, n7, n9, n10, n11, n15, n14]
 
             e += 1
 
     return NL, EL
+
 
 def isoparametric_transform(ksi, eta, x_coords, y_coords, ap):
     num_nodes = 4 if ap == 1 else (9 if ap == 2 else 16)
