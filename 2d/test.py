@@ -44,11 +44,11 @@ def k2(x, y):
 
 
 # test1
-def ft1(x, y, A=100, x0=0.5, y0=0.5, const=1):
+def ft1(x, y, A=100, x0=0.5, y0=0.5, const=0.1):
     return A * np.exp(-((x - x0) ** 2 + (y - y0) ** 2) / const)
 
 
-def ft2(x, y, A=100, x0=0.5, y0=0.5, const=0.1):
+def ft2(x, y, A=100, x0=0.5, y0=0.5, const=1):
     return A * np.exp(-((x - x0) ** 2 + (y - y0) ** 2) / const)
 
 
@@ -136,8 +136,110 @@ def main():
     ]
 
     element_type = 'D2QU4N'
-    p = 5
-    m = 5
+    p = 10
+    m = 10
+
+    # test1
+    # NLt1, ELt1 = m2d.uniform_mesh_with_vertices(verticest1, p, m, element_type, ap)
+    # f_loadt1 = s2d.set_up_vector(ft1, NLt1, ELt1, p, m, ap)
+    # elem_matricest1 = s2d.compute_element_stiffness(ELt1, NLt1, ap, k1=k1, k2=k2)
+    # matrixt1 = s2d.assemble_global_stiffness_matrix(NLt1, ELt1, p, m, elem_matricest1, ap)
+    # matrixt1, f_loadt1 = f2e.apply_boundary_conditions(matrixt1, f_loadt1, p, m, NLt1, ug, ap)
+    # ut1 = np.linalg.solve(matrixt1, f_loadt1)
+    # g2d.plot_2d_solution(ut1, NLt1, ELt1)
+    # print("Координати вузлів:\n", NLt1)
+    # print("Елементи:\n", ELt1)
+    # print(f_loadt1)
+    # print(matrixt1)
+    # print(ut1)
+
+    # test2
+    # NLt2, ELt2= m2d.uniform_mesh_with_vertices(verticest2, p, m, element_type, ap)
+    # f_loadt2 = s2d.set_up_vector(ft2, NLt2, ELt2, p, m, ap)
+    # elem_matricest2 = s2d.compute_element_stiffness(ELt2, NLt2, ap, k1=k1, k2=k2)
+    # matrixt2 =  s2d.assemble_global_stiffness_matrix(NLt2, ELt2, p, m, elem_matricest2, ap)
+    # matrixt2, f_loadt2 = f2e.apply_boundary_conditions(matrixt2, f_loadt2, p, m, NLt2, ug, ap)
+    # ut2 = np.linalg.solve(matrixt2, f_loadt2)
+    # g2d.plot_2d_solution(ut2, NLt2, ELt2)
+    # print("Координати вузлів:\n", NLt2)
+    # print("Елементи:\n", ELt2)
+    # print(f_loadt2)
+    # print(matrixt2)
+    # print(ut2)
+
+    # test3
+    # NLt3, ELt3= m2d.uniform_mesh_with_vertices(verticest3, p, m, element_type, ap)
+    # f_loadt3 = s2d.set_up_vector_point_sources(sourcest3, strengthst3, NLt3, p, m, ap)
+    # elem_matricest3 = s2d.compute_element_stiffness(ELt3, NLt3, ap, k1=k1, k2=k2)
+    # matrixt3 =  s2d.assemble_global_stiffness_matrix(NLt3, ELt3, p, m, elem_matricest3, ap)
+    # matrixt3, f_loadt3 = f2e.apply_boundary_conditions(matrixt3, f_loadt3, p, m, NLt3, ug, ap)
+    # ut3 = np.linalg.solve(matrixt3, f_loadt3)
+    # g2d.plot_2d_solution(ut3, NLt3, ELt3)
+    # print("Координати вузлів:\n", NLt3)
+    # print("Елементи:\n", ELt3)
+    # print(f_loadt3)
+    # print(matrixt3)
+    # print(ut3)
+
+    # test4
+    # NLt4, ELt4= m2d.uniform_mesh_with_vertices(verticest4, p, m, element_type, ap)
+    # f_loadt4 = s2d.set_up_vector_point_sources(sourcest4, strengthst4, NLt4, p, m, ap)
+    # elem_matricest4 = s2d.compute_element_stiffness(ELt4, NLt4, ap, k1=k1, k2=k2)
+    # matrixt4 =  s2d.assemble_global_stiffness_matrix(NLt4, ELt4, p, m, elem_matricest4, ap)
+    # matrixt4, f_loadt4 = f2e.apply_boundary_conditions(matrixt4, f_loadt4, p, m, NLt4, ug, ap)
+    # ut4 = np.linalg.solve(matrixt4, f_loadt4)
+    # g2d.plot_2d_solution(ut4, NLt4, ELt4)
+    # print("Координати вузлів:\n", NLt4)
+    # print("Елементи:\n", ELt4)
+    # print(f_loadt4)
+    # print(matrixt4)
+    # print(ut4)
+
+    # test5
+    # NLt5, ELt5= m2d.uniform_mesh_with_vertices(verticest5, p, m, element_type, ap)
+    # f_loadt5 = s2d.set_up_vector(ft5, NLt5, ELt5, p, m, ap)
+    # elem_matricest5 = s2d.compute_element_stiffness(ELt5, NLt5, ap, k1=k1t5, k2=k2t5)
+    # matrixt5 =  s2d.assemble_global_stiffness_matrix(NLt5, ELt5, p, m, elem_matricest5, ap)
+    # matrixt5, f_loadt5 = f2e.apply_boundary_conditions(matrixt5, f_loadt5, p, m, NLt5, ug, ap)
+    # ut5 = np.linalg.solve(matrixt5, f_loadt5)
+    # g2d.plot_2d_solution(ut5, NLt5, ELt5)
+    # print("Координати вузлів:\n", NLt5)
+    # print("Елементи:\n", ELt5)
+    # print(f_loadt5)
+    # print(matrixt5)
+    # print(ut5)
+
+    # test6
+    # NLt6, ELt6= m2d.uniform_mesh_with_vertices(verticest6, p, m, element_type, ap)
+    # f_loadt6 = s2d.set_up_vector(ft6, NLt6, ELt6, p, m, ap)
+    # elem_matricest6 = s2d.compute_element_stiffness(ELt6, NLt6, ap, k1=k1t6, k2=k2t6)
+    # matrixt6 =  s2d.assemble_global_stiffness_matrix(NLt6, ELt6, p, m, elem_matricest6, ap)
+    # matrixt6, f_loadt6 = f2e.apply_boundary_conditions(matrixt6, f_loadt6, p, m, NLt6, ug, ap)
+    # ut6 = np.linalg.solve(matrixt6, f_loadt6)
+    # g2d.plot_2d_solution(ut6, NLt6, ELt6)
+    # print("Координати вузлів:\n", NLt6)
+    # print("Елементи:\n", ELt6)
+    # print(f_loadt6)
+    # print(matrixt6)
+    # print(ut6)
+
+    # ver
+    NLv, ELv = m2d.uniform_mesh_with_vertices(verticesv, p, m, element_type, ap)
+    f_loadv = s2d.set_up_vector(fv, NLv, ELv, p, m, ap)
+    elem_matricesv = s2d.compute_element_stiffness(ELv, NLv, ap, k1=k1, k2=k2)
+    matrixv = s2d.assemble_global_stiffness_matrix(NLv, ELv, p, m, elem_matricesv, ap)
+    matrixv, f_loadv = f2e.apply_boundary_conditions(matrixv, f_loadv, p, m, NLv, ug, ap)
+    uv = np.linalg.solve(matrixv, f_loadv)
+    g2d.plot_2d_solution(uv, NLv, ELv)
+    print("Координати вузлів:\n", NLv)
+    print("Елементи:\n", ELv)
+    print(f_loadv)
+    print(matrixv)
+    print(uv)
+    g2d.plot_2d_solution2(uv, NLv, ELv, exact_solution=exact_solution)
+    g2d.plot_2d_solution_exact(exact_solution, NLv)
+
+    # g2d.plot_2d_solution_difference(uv, NLv, exact_solution)
 
 
 if __name__ == '__main__':
